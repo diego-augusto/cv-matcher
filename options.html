@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>CV Matcher — Configurações</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+  label { display: block; font-weight: 600; margin: 1.2rem 0 .3rem; }
+  input, textarea { width: 100%; box-sizing: border-box; font: inherit; padding: .5rem; }
+  textarea { height: 26rem; font-family: ui-monospace, monospace; font-size: 13px; }
+  button { margin-top: 1rem; font: inherit; padding: .5rem 1.2rem; }
+  small { color: #666; }
+</style>
+<h1>CV Matcher</h1>
+
+<label for="apiKey">Chave da API da Anthropic</label>
+<input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off">
+<small>Fica salva apenas neste navegador (chrome.storage.local) e só é enviada para api.anthropic.com.</small>
+
+<label for="cv">Seu currículo completo (texto ou Markdown)</label>
+<textarea id="cv" placeholder="Cole aqui tudo: experiências, projetos, skills, formação, contatos. Quanto mais completo, melhor a seleção para cada vaga."></textarea>
+
+<button id="save">Salvar</button> <span id="status" role="status"></span>
+<script src="options.js"></script>
+</html>

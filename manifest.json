@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "CV Matcher",
+  "version": "0.1.0",
+  "description": "Gera um currículo adaptado à vaga da página atual, usando o Claude.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://api.anthropic.com/*"],
+  "action": { "default_title": "Gerar currículo para esta vaga" },
+  "background": { "service_worker": "background.js" },
+  "options_page": "options.html"
+}

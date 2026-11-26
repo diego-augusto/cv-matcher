@@ -73,21 +73,23 @@ function render(cv) {
   document.title = `CV - ${cv.name}`; // vira o nome sugerido do PDF
 }
 
-async function generate({ apiKey, cv, job }) {
+async function generate({ apiKey, cv, job, model = "claude-opus-5-5" }) {
+  // O fallback de recusa no servidor não existe para o Haiku.
+  const fallback = !model.includes("haiku");
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "x-api-key": apiKey,
       "anthropic-version": "2026-10-21",
-      "anthropic-beta": "server-side-fallback-2026-07-01",
+      ...(fallback && { "anthropic-beta": "server-side-fallback-2026-07-01" }),
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: "claude-opus-5-5",
+      model,
       max_tokens: 16000,
       thinking: { type: "adaptive" },
-      fallbacks: "default",
+      ...(fallback && { fallbacks: "default" }),
       output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
       system: SYSTEM,
       messages: [
@@ -99,16 +101,37 @@ async function generate({ apiKey, cv, job }) {
   if (!res.ok) throw new Error(`API ${res.status}: ${data.error?.message || res.statusText}`);
   if (data.stop_reason === "refusal") throw new Error("O modelo recusou a solicitação.");
   if (data.stop_reason === "max_tokens") throw new Error("Resposta cortada por limite de tokens.");
-  return JSON.parse(data.content.find((block) => block.type === "text").text);
+  return data;
+}
+
+function showMeta({ cv, job, jobUrl, model = "claude-opus-5-5" }, data) {
+  const n = (x) => x.toLocaleString("pt-BR");
+  const lines = [
+    `Vaga: ${jobUrl || "(URL desconhecida)"}`,
+    `Modelo: ${model}`,
+    `Data: ${new Date().toLocaleString("pt-BR")}`,
+    `Currículo base: ${n(cv.length)} caracteres`,
+    `Texto lido da página: ${n(job.length)} caracteres`,
+  ];
+  if (data) {
+    if (data.model !== model) lines.push(`Modelo que respondeu: ${data.model}`);
+    lines.push(`Tokens: ${n(data.usage.input_tokens)} de entrada, ${n(data.usage.output_tokens)} de saída`);
+  }
+  $("metaText").value = `${lines.join("\n")}\n\n--- Texto lido da página ---\n${job}`;
+  $("meta").hidden = false;
 }
 
 (async () => {
-  const stored = await chrome.storage.local.get(["apiKey", "cv", "job"]);
+  const stored = await chrome.storage.local.get(["apiKey", "cv", "job", "jobUrl", "model"]);
   if (!stored.apiKey || !stored.cv) return status("Configure a chave da API e o seu currículo em Configurações.");
   if (!stored.job?.trim()) return status("Não consegui ler o texto desta página. Abra a vaga e clique no ícone de novo.");
   status("Gerando currículo… pode levar cerca de um minuto.");
+  showMeta(stored);
   try {
-    render(await generate(stored));
+    const data = await generate(stored);
+    render(JSON.parse(data.content.find((block) => block.type === "text").text));
+    showMeta(stored, data);
+    $("meta").open = false;
     status("Pronto. Clique no texto para ajustar antes de imprimir.");
     $("print").hidden = false;
   } catch (e) {

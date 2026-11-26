@@ -6,7 +6,6 @@
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["https://api.anthropic.com/*"],
   "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
-  "action": { "default_title": "Gerar currículo para esta vaga" },
-  "background": { "service_worker": "background.js" },
-  "options_page": "options.html"
+  "action": { "default_title": "CV Matcher", "default_popup": "popup.html" },
+  "options_page": "popup.html"
 }

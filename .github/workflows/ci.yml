@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm test
+
+  # Pushing a tag vX.Y.Z publishes a GitHub release with the zipped extension (the src/ folder).
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: The tag must match the manifest version
+        run: test "v$(jq -r .version src/manifest.json)" = "$GITHUB_REF_NAME"
+      - name: Zip the extension
+        run: cd src && zip -r "../cv-matcher-$GITHUB_REF_NAME.zip" .
+      - name: Create the release
+        run: gh release create "$GITHUB_REF_NAME" "cv-matcher-$GITHUB_REF_NAME.zip" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

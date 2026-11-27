@@ -10,7 +10,7 @@ It reads the page text, combines it with your full résumé, and returns a versi
 
 1. Open `chrome://extensions`.
 2. Turn on **Developer mode**.
-3. Click **Load unpacked** and select this folder.
+3. Click **Load unpacked** and select the `src` folder.
 
 ## Setup
 
@@ -39,21 +39,24 @@ The last résumé is kept: reloading the tab or reopening it from the popup show
 - **Language:** the résumé is written in the language of the job posting.
 - **Page as data:** instructions that appear in the page text are ignored.
 
-To change these rules, edit the `SYSTEM` constant in `result.js`.
+To change these rules, edit the `SYSTEM` constant in `src/core.js`.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `manifest.json` | Extension manifest (Manifest V3). |
-| `popup.html`, `popup.js` | Icon popup: generate button, model, key and résumé. Also the options page. |
-| `result.html`, `result.js` | Calls the Claude API, renders the résumé, saves edits and handles printing. |
-| `i18n.js` | Interface strings in the three languages, and theme handling. |
-| `ui.css` | Colors and controls shared by both screens (light and dark theme). |
+| `src/` | The extension itself; this is the folder Chrome loads. |
+| `src/manifest.json` | Extension manifest (Manifest V3). |
+| `src/popup.html`, `src/popup.js` | Icon popup: generate button, model, key and résumé. Also the options page. |
+| `src/result.html`, `src/result.js` | Calls the Claude API, renders the résumé, saves edits and handles printing. |
+| `src/core.js` | Logic with no DOM: the prompt, the request, response parsing and error mapping. |
+| `src/i18n.js` | Interface strings in the three languages, and theme handling. |
+| `src/ui.css` | Colors and controls shared by both screens (light and dark theme). |
+| `test/core.test.mjs` | Unit tests for `core.js` and static checks on the extension files. |
+| `test/check-i18n.mjs` | Checks that the three languages have the same keys. |
 | `test/fake-resume.md` | Fictional résumé for testing. |
-| `test/check-i18n.mjs` | Checks that the three languages have the same keys (`node test/check-i18n.mjs`). |
 
-There is no build step and there are no dependencies.
+There is no build step and there are no dependencies. Run the tests with `npm test` (Node 22 or newer).
 
 ## Model and cost
 

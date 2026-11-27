@@ -10,35 +10,42 @@ CV Matcher is a Chrome extension (Manifest V3) that reads the job posting on the
 
 - Everything in the repository is in English: code, identifiers, comments, file and folder names, docs, test fixtures, commit messages and PR text. Do this even when the conversation with the user is in another language.
 - The only non-English text is the `pt` and `es` tables in `i18n.js`. User-facing strings never go inline in HTML or JS; they go through `i18n.js` in all three languages.
-- No build step and no dependencies. Do not add a bundler, framework or npm package without being asked.
+- No build step and no dependencies. Do not add a bundler, framework or npm package without being asked. `package.json` exists only to mark the files as ES modules for Node and to give `npm test`.
+- The extension is the `src/` folder and nothing else ships. Tests, docs and tooling stay outside it.
+- Logic that needs no DOM and no `chrome.*` goes in `src/core.js`, with a unit test. Page scripts keep the DOM and storage glue.
 
 ## Commands
 
-There is no package.json. Files are loaded by Chrome as-is.
+Files in `src/` are loaded by Chrome as-is.
 
-- Run: `chrome://extensions` → Developer mode → Load unpacked → this folder. After editing, click reload on the extension card.
-- Syntax check: `node --check popup.js result.js i18n.js`
-- The only test: `node test/check-i18n.mjs` — fails if the three languages do not have identical keys or if the code references a missing key. Run it from the repo root after touching any UI string.
+- Run: `chrome://extensions` → Developer mode → Load unpacked → the `src/` folder. After editing, click reload on the extension card.
+- Test: `npm test` (`node --test`, Node's built-in runner), from the repo root. It runs:
+  - `test/core.test.mjs` — unit tests for `src/core.js`, plus static checks on the extension files: every script parses, the two model lists match, `#cv` is still plaintext-only, the pages have no inline scripts, and every file the manifest and pages reference exists.
+  - `test/check-i18n.mjs` — fails if the three languages do not have identical keys or if the code references a missing key.
+- One test by name: `node --test --test-name-pattern="explain"`.
+- CI (`.github/workflows/ci.yml`) runs `npm test` on every pull request and on pushes to `main`.
+- Release: bump `version` in `src/manifest.json`, then push a tag `vX.Y.Z` that matches it. CI zips `src/` and attaches it to a GitHub release. Publishing to the Chrome Web Store is still manual.
 
 ## Architecture
 
-Two pages, no background service worker:
+Two pages, no background service worker, all under `src/`:
 
 - `popup.html` / `popup.js` is both the action popup and the options page (`manifest.json` points both at it). `chrome.tabs.getCurrent()` returns nothing in a popup, which is how the script tells the two apart; as a tab it adds the `.tab` class and hides everything that needs a "current job tab". It has three views toggled in `render()`: ready, setup, about.
-- `result.html` / `result.js` is the tab that calls the API, renders the résumé and handles editing and printing. It is a small state machine: `setState("generating" | "ready" | "notice")` toggles every element carrying a matching `data-show`.
+- `result.html` / `result.js` is the tab that calls the API, renders the résumé and handles editing and printing. It is a small state machine: `setState("generating" | "ready" | "notice")` toggles every element carrying a matching `data-show`. It is loaded as `<script type="module">` so it can import `core.js`.
+- `core.js` is the pure part of the result page: `SCHEMA`, `SYSTEM`, `MODEL_NAMES`, `buildRequest()`, `parseResponse()`, `explain()` and `startMode()`. It must stay free of DOM, `chrome.*` and i18n globals (`explain` receives `t` as an argument) so Node can import it. `i18n.js` and `popup.js` remain classic scripts; their top-level declarations are globals that the module can read.
 
 ### Flow and the `#new` rule
 
 Clicking generate in the popup reads `document.body.innerText` of the active tab via `chrome.scripting.executeScript` (the `activeTab` permission is granted by opening the popup), stores it as `job`, and opens `result.html#new`.
 
-`result.js` only starts a paid generation when the URL has `#new`, and it strips the hash immediately. Without it (reload, "Open" from the popup) the page shows the saved `result`. Keep this invariant: a reload must never call the API. The other two triggers are the explicit "Generate again" and "Try again" buttons.
+`result.js` only starts a paid generation when the URL has `#new` (decided by `startMode()` in `core.js`), and it strips the hash immediately. Without it (reload, "Open" from the popup) the page shows the saved `result`. Keep this invariant: a reload must never call the API. The other two triggers are the explicit "Generate again" and "Try again" buttons.
 
 ### Storage
 
 - `chrome.storage.local`: `apiKey`, `cv` (the user's source résumé), `model`, `job` (`{text, url, title}`, last captured page), `result` (`{job, cv, html, meta}`, last generated résumé). Only one result is kept. `result.cv` is the model's JSON; `result.html` is the edited DOM, set once the user edits.
 - `localStorage`: `lang` and `theme` only. They live there because it is synchronous and shared by both pages, so `i18n.js` (loaded in `<head>`) can set theme and language before first paint.
 
-### Claude API call (`generate()` in `result.js`)
+### Claude API call (`generate()` in `result.js`, built and parsed in `core.js`)
 
 Raw `fetch` to `/v1/messages`, not the SDK, because there is no build step. Things that are easy to break:
 
@@ -46,8 +53,9 @@ Raw `fetch` to `/v1/messages`, not the SDK, because there is no build step. Thin
 - Structured output via `output_config.format` with `SCHEMA`; every object needs `additionalProperties: false` and all properties required. The résumé is rendered from this JSON with `textContent` only, never model HTML.
 - `fallbacks: "default"` plus the `server-side-fallback-2026-07-01` beta header are sent for every model except Haiku, which has no server-side fallback.
 - `thinking: {type: "adaptive"}`; do not send `budget_tokens`, `temperature` or a disabled thinking config, the current models reject them.
-- The model list is duplicated: `<option>`s in `popup.html` (with `data-name`, `data-in`, `data-out` prices) and `MODEL_NAMES` in `result.js`.
+- The model list is duplicated: `<option>`s in `popup.html` (with `data-name`, `data-in`, `data-out` prices) and `MODEL_NAMES` in `core.js`. A test keeps them in sync.
 - `SYSTEM` is the model prompt, in English, and is not part of the i18n table. It encodes the product rules: never invent facts absent from the source résumé, write in the language of the job posting, treat page text as untrusted data.
+- `parseResponse()` throws `ApiError` for anything that is not a usable résumé. Never let a `TypeError` escape from it: `explain()` reads `TypeError` as a network failure, because that is what `fetch` rejects with.
 - `explain()` maps API failures to actionable notices; new failure modes go there, with strings in `i18n.js`.
 
 ### Editing and saved HTML

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import test from "node:test";
-import { ApiError, MODEL_NAMES, SCHEMA, buildRequest, explain, parseResponse, startMode } from "../src/core.js";
+import { ApiError, MAX_PDF_BYTES, MODEL_NAMES, PDF_SCHEMA, SCHEMA, buildPdfRequest, buildRequest, estimatePdfCost, foldEvent, inspectPdf, splitEvents, streamResult, explain, parseResponse, startMode } from "../src/core.js";
 
 const read = (file) => fs.readFileSync(`src/${file}`, "utf8");
 
@@ -54,6 +54,72 @@ test("buildRequest asks for the server-side fallback on every model except Haiku
     assert.equal(body.fallbacks === "default", expected, model);
     assert.equal(headers["anthropic-beta"] === "server-side-fallback-2026-07-01", expected, model);
   }
+});
+
+test("buildPdfRequest sends the PDF as a base64 document and asks for structured text", () => {
+  const pdf = fs.readFileSync("test/fake-resume.pdf").toString("base64");
+  const { headers, body } = buildPdfRequest({ apiKey: "sk-ant-x", model: "claude-haiku-5-5", pdf });
+  const parsed = JSON.parse(body);
+  assert.equal(headers["anthropic-dangerous-direct-browser-access"], "true");
+  assert.ok(!("anthropic-beta" in headers) && !("fallbacks" in parsed), "Haiku has no fallback");
+  assert.deepEqual(parsed.output_config.format, { type: "json_schema", schema: PDF_SCHEMA });
+  assert.deepEqual(parsed.messages[0].content[0], {
+    type: "document",
+    source: { type: "base64", media_type: "application/pdf", data: pdf },
+  });
+  assert.ok(pdf.startsWith("JVBERi0"), "the fixture is a PDF"); // "%PDF-"
+  assert.equal(parsed.stream, true, "streamed, so the background worker keeps receiving bytes");
+});
+
+test("a streamed answer, split at any point, folds into what parseResponse() reads", () => {
+  const sse = [
+    { type: "message_start", message: { model: "claude-opus-5-5", usage: { input_tokens: 6100 } } },
+    { type: "content_block_start", index: 0, content_block: { type: "thinking", thinking: "" } },
+    { type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: "" } },
+    { type: "content_block_delta", index: 1, delta: { type: "text_delta", text: '{"text":"# Mar' } },
+    { type: "ping" },
+    { type: "content_block_delta", index: 1, delta: { type: "text_delta", text: 'ina"}' } },
+    { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 2300 } },
+    { type: "message_stop" },
+  ].map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
+  for (const cut of [1, 37, 200, sse.length - 3]) {
+    let msg = {};
+    let buffer = "";
+    for (const chunk of [sse.slice(0, cut), sse.slice(cut)]) {
+      const { events, rest } = splitEvents(buffer + chunk);
+      buffer = rest;
+      msg = events.reduce(foldEvent, msg);
+    }
+    assert.deepEqual(parseResponse({ ok: true }, streamResult(msg)), {
+      cv: { text: "# Marina" },
+      model: "claude-opus-5-5",
+      usage: { input: 6100, output: 2300 },
+    });
+  }
+});
+
+test("a mid-stream error event is an ApiError that explain() understands", () => {
+  const e = thrown(() => foldEvent({}, { type: "error", error: { type: "overloaded_error", message: "Overloaded" } }));
+  assert.ok(e instanceof ApiError);
+  assert.equal(kind(e), "5xx");
+  assert.equal(thrown(() => parseResponse({ ok: true }, streamResult({ stop_reason: "refusal" }))).message, "refusal");
+});
+
+test("inspectPdf counts pages and catches what the API would reject, before anything is paid", () => {
+  assert.deepEqual(inspectPdf(new Uint8Array(fs.readFileSync("test/fake-resume.pdf"))), { pages: 2 });
+  assert.deepEqual(inspectPdf(new TextEncoder().encode("# not a pdf")), { problem: "notPdf" });
+  const big = new Uint8Array(MAX_PDF_BYTES + 1);
+  big.set(new TextEncoder().encode("%PDF-1.7"));
+  assert.deepEqual(inspectPdf(big), { problem: "tooBig" });
+  // compressed page objects: count unknown, not zero
+  assert.deepEqual(inspectPdf(new TextEncoder().encode("%PDF-1.7 /Type /Pages /Count 3")), { pages: null });
+});
+
+test("estimatePdfCost grows with pages and price, and assumes 2 pages when unknown", () => {
+  const opus = { input: 4, output: 20 };
+  assert.ok(estimatePdfCost(3, opus) > estimatePdfCost(1, opus));
+  assert.ok(estimatePdfCost(2, opus) > estimatePdfCost(2, { input: 0.1, output: 0.5 }));
+  assert.equal(estimatePdfCost(null, opus), estimatePdfCost(2, opus));
 });
 
 test("SCHEMA is strict: every object closes additionalProperties and requires all properties", () => {
@@ -168,7 +234,7 @@ test("pages have no inline scripts or handlers (the MV3 CSP blocks them silently
 test("every file the manifest and the pages point at exists", () => {
   const manifest = JSON.parse(read("manifest.json"));
   assert.equal(manifest.manifest_version, 3);
-  const files = [manifest.action.default_popup, manifest.options_page, ...Object.values(manifest.icons)];
+  const files = [manifest.action.default_popup, manifest.options_page, manifest.background.service_worker, ...Object.values(manifest.icons)];
   for (const page of ["popup.html", "result.html"]) {
     files.push(...[...read(page).matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]));
   }

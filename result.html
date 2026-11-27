@@ -2,49 +2,143 @@
 <html lang="pt-BR">
 <meta charset="utf-8">
 <title>CV Matcher</title>
+<link rel="stylesheet" href="ui.css">
 <style>
-  body { font: 11pt/1.4 Georgia, "Times New Roman", serif; color: #111; max-width: 800px; margin: 0 auto; padding: 1rem 2rem 3rem; }
-  #bar { font: 14px system-ui, sans-serif; display: flex; gap: .8rem; align-items: center; padding: .8rem 0; border-bottom: 1px solid #ddd; margin-bottom: 1.5rem; }
-  #bar button { font: inherit; padding: .4rem 1rem; }
-  #status { color: #555; }
-  #meta { font: 13px system-ui, sans-serif; margin-bottom: 1.5rem; }
-  #meta summary { cursor: pointer; color: #555; }
-  #meta textarea { width: 100%; height: 12rem; box-sizing: border-box; margin-top: .4rem; font: 12px/1.4 ui-monospace, monospace; background: #f6f6f6; border: 1px solid #ddd; padding: .5rem; }
-  h1 { font-size: 22pt; margin: 0; }
-  .headline { font-size: 12pt; margin: .1rem 0; }
-  .contact { font-size: 10pt; color: #333; margin: .2rem 0 .8rem; }
-  h2 { font-size: 11pt; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid #111; margin: 1rem 0 .4rem; break-after: avoid; }
-  .entry { margin-bottom: .6rem; break-inside: avoid; }
-  .entry-head { display: flex; justify-content: space-between; gap: 1rem; }
-  .entry-head strong { font-size: 11pt; }
-  .period { white-space: nowrap; font-size: 10pt; }
-  .subtitle { font-style: italic; }
-  ul { margin: .2rem 0 0; padding-left: 1.2rem; }
-  p { margin: .2rem 0; }
+  body { margin: 0; background: var(--ground); }
+  p { margin: 0; }
+  #bar { position: sticky; top: 0; z-index: 1; min-height: 44px; padding: 10px 24px; background: var(--surface); border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  #status { flex: 1; margin-left: 12px; display: flex; align-items: center; gap: 8px; }
+  #statusText { font-weight: 600; }
+  #statusExtra { font-variant-numeric: tabular-nums; }
+  .spinner { width: 14px; height: 14px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 50% { opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { .spinner, #skeleton { animation: none !important; } }
+
+  #layout { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; padding: 24px; }
+  #stage { flex: 999 1 560px; min-width: 0; overflow-x: auto; padding: 2px 2px 8px; }
+  #stage > * { margin: 0 auto 10px; }
+  #tip { width: 210mm; max-width: 100%; }
+
+  /* A folha tem a largura útil da impressão (A4 menos 15 mm por lado), para a quebra de linha
+     e a estimativa de páginas baterem com o PDF. Fica sempre clara: é um documento. */
+  .paper { width: 210mm; box-sizing: border-box; padding: 15mm; background: #fff; color: #111; color-scheme: light; box-shadow: 0 1px 3px rgba(26, 31, 39, .25); font: 11pt/1.4 Georgia, "Times New Roman", serif; }
+  .paper:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #skeleton { min-height: 240mm; display: flex; flex-direction: column; gap: 12px; animation: pulse 1.6s ease-in-out infinite; }
+  #skeleton div { height: 12px; border-radius: 4px; background: #e3e6eb; }
+  #skeleton .gap { margin-top: 20px; }
   #sheet { width: 100%; border-collapse: collapse; }
   #sheet td { padding: 0; }
+  /* Linha a cada 267 mm (altura útil de uma página A4): marca a quebra aproximada. */
+  #cv { min-height: 266mm; outline: none; background: linear-gradient(to bottom, transparent calc(267mm - 1px), #9aa3b0 0) 0 0 / 100% 267mm; }
+  #cv > :hover { outline: 1px dashed #9aa3b0; outline-offset: 3px; }
+  #cv h1 { font-size: 22pt; margin: 0; }
+  .headline { font-size: 12pt; margin: .1rem 0; }
+  .contact { font-size: 10pt; color: #333; margin: .2rem 0 .8rem; }
+  #cv h2 { font-size: 11pt; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid #111; margin: 1rem 0 .4rem; break-after: avoid; }
+  .entry { margin-bottom: .6rem; break-inside: avoid; }
+  .entry-head { display: flex; justify-content: space-between; gap: 1rem; }
+  .period { white-space: nowrap; font-size: 10pt; }
+  .subtitle { font-style: italic; }
+  #cv ul { margin: .2rem 0 0; padding-left: 1.2rem; }
+  #cv p { margin: .2rem 0; }
+
+  #notice { max-width: 560px; margin-top: 48px; box-sizing: border-box; padding: 32px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; gap: 14px; }
+  #notice h2 { margin: 0; font-size: 20px; font-weight: 650; line-height: 1.25; }
+  #noticeActions { display: flex; flex-wrap: wrap; gap: 12px; }
+  #noticeDetail { border-top: 1px solid var(--line); padding-top: 12px; font: 12px ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
+
+  #meta { flex: 1 1 280px; min-width: 0; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; gap: 12px; }
+  #meta h2 { margin: 0; font-size: 14px; font-weight: 650; }
+  #metaList { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  #metaList .wide { grid-column: 1 / -1; }
+  #metaList dt, #meta label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  #metaList dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+  #metaList a { display: block; font-size: 13px; }
+  #jobText { width: 100%; height: 200px; box-sizing: border-box; margin-top: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font: 12px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: var(--ink); background: var(--soft); resize: vertical; }
+
   /* Margem de página zero tira o cabeçalho/rodapé do Chrome (data, título, URL);
      thead/tfoot vazios se repetem em cada folha e devolvem a margem vertical. */
   @page { margin: 0; }
   @media print {
-    #bar, #meta { display: none; }
-    body { padding: 0 1.5cm; max-width: none; }
-    #sheet thead td, #sheet tfoot td { height: 1.5cm; }
+    body { background: #fff; padding: 0 15mm; }
+    #bar, #meta, #tip, #notice, #skeleton { display: none !important; }
+    #layout { display: block; padding: 0; }
+    #stage { overflow: visible; padding: 0; }
+    .paper { width: auto; margin: 0; padding: 0; box-shadow: none; outline: none !important; }
+    #cv { min-height: 0; background: none; }
+    #cv > :hover { outline: none; }
+    #sheet thead td, #sheet tfoot td { height: 15mm; }
   }
 </style>
+
 <div id="bar">
-  <button id="print" hidden>Imprimir / Salvar PDF</button>
-  <button id="options">Configurações</button>
-  <span id="status" role="status">Carregando…</span>
+  <img src="icons/icon48.png" width="28" height="28" alt="">
+  <span class="brand">CV Matcher</span>
+  <div id="status" role="status">
+    <span id="spinner" class="spinner" hidden></span>
+    <span id="statusText"></span>
+    <span id="statusExtra" class="muted"></span>
+  </div>
+  <button id="cancel" class="btn ghost" data-show="generating" hidden>Cancelar</button>
+  <button id="regen" class="btn ghost" data-show="ready" hidden>Gerar de novo</button>
+  <button id="print" class="btn" data-show="ready" hidden>Imprimir / Salvar PDF</button>
 </div>
-<details id="meta" open hidden>
-  <summary>Dados usados na geração</summary>
-  <textarea id="metaText" readonly aria-label="Dados usados na geração"></textarea>
-</details>
-<table id="sheet" role="presentation">
-  <thead><tr><td></td></tr></thead>
-  <tbody><tr><td><main id="cv" contenteditable="true" spellcheck="false"></main></td></tr></tbody>
-  <tfoot><tr><td></td></tr></tfoot>
-</table>
+
+<div id="layout">
+  <div id="stage">
+    <p id="tip" class="muted small" data-show="ready" hidden>Clique em qualquer texto para editar. As alterações ficam salvas e não gastam uma nova geração.</p>
+
+    <div class="paper" data-show="generating" hidden>
+      <div id="skeleton" aria-hidden="true">
+        <div style="height: 28px; width: 46%"></div>
+        <div style="width: 30%"></div>
+        <div style="width: 58%"></div>
+        <div style="width: 100%" class="gap"></div>
+        <div style="width: 92%"></div>
+        <div style="width: 22%; height: 14px" class="gap"></div>
+        <div style="width: 40%"></div>
+        <div style="width: 88%"></div>
+        <div style="width: 80%"></div>
+        <div style="width: 84%"></div>
+        <div style="width: 36%" class="gap"></div>
+        <div style="width: 82%"></div>
+        <div style="width: 76%"></div>
+        <div style="width: 18%; height: 14px" class="gap"></div>
+        <div style="width: 70%"></div>
+        <div style="width: 64%"></div>
+      </div>
+    </div>
+
+    <div class="paper" data-show="ready" hidden>
+      <table id="sheet" role="presentation">
+        <thead><tr><td></td></tr></thead>
+        <!-- plaintext-only: colar não traz HTML de fora, então o innerHTML salvo é só a nossa estrutura + texto -->
+        <tbody><tr><td><main id="cv" contenteditable="plaintext-only" role="textbox" aria-multiline="true" aria-label="Currículo gerado, editável" spellcheck="false"></main></td></tr></tbody>
+        <tfoot><tr><td></td></tr></tfoot>
+      </table>
+    </div>
+
+    <div id="notice" data-show="notice" hidden>
+      <h2 id="noticeTitle"></h2>
+      <p id="noticeText"></p>
+      <p id="noticeNote" class="muted small"></p>
+      <div id="noticeActions">
+        <button id="openSettings" class="btn">Abrir configurações</button>
+        <button id="retry" class="btn ghost">Tentar de novo</button>
+      </div>
+      <div id="noticeDetail" class="muted"></div>
+    </div>
+  </div>
+
+  <aside id="meta" aria-labelledby="metaTitle" hidden>
+    <h2 id="metaTitle">Dados usados na geração</h2>
+    <dl id="metaList"></dl>
+    <div>
+      <label for="jobText">Texto lido da página</label>
+      <textarea id="jobText" readonly></textarea>
+    </div>
+  </aside>
+</div>
 <script src="result.js"></script>
 </html>

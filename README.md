@@ -12,7 +12,7 @@ Ela lê o texto da página, combina com o seu currículo completo e devolve uma 
 
 ## Configuração
 
-Clique no ícone da extensão e abra **Chave da API e currículo** no popup (na primeira vez, já vem aberto). Preencha:
+Clique no ícone da extensão. Na primeira vez, o popup abre direto na configuração; depois, ela fica no botão de ajustes, no canto do popup. Preencha:
 
 - **Chave da API da Anthropic** (`sk-ant-...`), criada em [platform.claude.com](https://platform.claude.com).
 - **Modelo** do Claude usado na geração.
@@ -24,9 +24,11 @@ Tudo é salvo automaticamente. Para editar o currículo com mais espaço, abra a
 
 1. Abra a página de uma vaga (qualquer site).
 2. Clique no ícone da extensão e em **Gerar currículo para esta vaga**.
-3. Aguarde a geração na nova aba (cerca de um minuto).
-4. Clique no texto para ajustar o que quiser.
-5. Clique em **Imprimir / Salvar PDF**.
+3. Aguarde a geração na nova aba (cerca de um minuto); dá para cancelar.
+4. Clique no texto para ajustar o que quiser. As edições ficam salvas.
+5. Confira a estimativa de páginas e clique em **Imprimir / Salvar PDF**.
+
+O último currículo fica guardado: recarregar a aba ou reabrir pelo popup mostra o que foi salvo, sem nova chamada à API. Uma nova geração só acontece pelo botão do popup ou por **Gerar de novo**.
 
 ## Regras de geração
 
@@ -42,7 +44,9 @@ Para mudar essas regras, edite a constante `SYSTEM` em `result.js`.
 |---|---|
 | `manifest.json` | Manifesto da extensão (Manifest V3). |
 | `popup.html`, `popup.js` | Popup do ícone: botão de gerar, modelo, chave e currículo. Também serve de página de opções. |
-| `result.html`, `result.js` | Chama a API do Claude, renderiza o currículo e cuida da impressão. |
+| `result.html`, `result.js` | Chama a API do Claude, renderiza o currículo, salva as edições e cuida da impressão. |
+| `ui.css` | Cores e controles compartilhados pelas duas telas (tema claro e escuro). |
+| `teste/cv-fake.md` | Currículo fictício para testar. |
 
 Não há etapa de build nem dependências.
 
@@ -60,4 +64,5 @@ O modelo é escolhido nas configurações: Opus 5.5 (padrão), Sonnet 5.5, Haiku
 
 - Páginas internas do Chrome (`chrome://`, Web Store) não podem ser lidas.
 - Vagas que carregam a descrição dentro de um iframe podem vir sem o texto; nesse caso, abra a vaga em página própria.
-- Sem histórico: cada geração cria um currículo novo e substitui o anterior.
+- Sem histórico: só o último currículo fica guardado; cada geração substitui o anterior.
+- A contagem de páginas na tela é uma estimativa para papel A4.

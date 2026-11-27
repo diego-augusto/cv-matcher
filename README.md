@@ -35,7 +35,7 @@ Everything is saved automatically. To edit the résumé with more room, open the
 4. Click the text to adjust anything. Edits are saved.
 5. Check the page estimate and click **Print / Save PDF**.
 
-The last résumé is kept: reloading the tab or reopening it from the popup shows what was saved, with no new API call. A new generation only happens from the popup button or from **Generate again**.
+The last 15 résumés are kept under **Recent résumés** in the popup: reloading the tab or reopening one shows what was saved, with no new API call. A new generation only happens from the popup button or from **Generate again**.
 
 ## Generation rules
 
@@ -77,5 +77,5 @@ The model is chosen in settings: Opus 5.5 (default), Sonnet 5.5, Haiku 5.5 or Fa
 
 - Chrome's internal pages (`chrome://`, the Web Store) cannot be read.
 - Postings that load the description inside an iframe may come through without the text; in that case, open the posting on its own page.
-- No history: only the last résumé is kept, and each generation replaces the previous one.
+- Only the last 15 generated résumés are kept; older ones are dropped.
 - The on-screen page count is an estimate for A4 paper.

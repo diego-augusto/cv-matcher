@@ -33,6 +33,16 @@
   #tabTitle { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #existing { padding: 10px 12px; border-radius: 8px; background: var(--soft); font-size: 13px; }
   #summary, #footer { font-size: 13px; color: var(--muted); }
+  #history summary { font-size: 13px; font-weight: 600; cursor: pointer; min-height: 32px; display: flex; align-items: center; gap: 6px; list-style: none; }
+  #history summary::-webkit-details-marker { display: none; }
+  #history summary::before { content: ""; width: 6px; height: 6px; margin: 0 4px 0 2px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(-45deg); transition: transform .15s; }
+  #history[open] summary::before { transform: rotate(45deg); }
+  #historyCount { font-weight: 500; }
+  .history-item.current { background: var(--soft); }
+  #historyList { list-style: none; margin: 4px 0 0; padding: 0; max-height: 14rem; overflow-y: auto; }
+  .history-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .history-item:hover, .history-item:focus-visible { background: var(--soft); }
+  .history-title { max-width: 100%; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #summary { border-top: 1px solid var(--line); padding-top: 12px; }
   #hint { text-align: center; }
   #hint:empty, .pdf-detail:empty { display: none; }
@@ -223,6 +233,11 @@
   <span class="grow" data-i18n="p.existing"></span>
   <button id="openExisting" class="link" data-i18n="p.open"></button>
 </div>
+
+<details id="history" hidden>
+  <summary><span class="grow" data-i18n="p.history"></span><span id="historyCount" class="muted"></span></summary>
+  <ul id="historyList"></ul>
+</details>
 
 <div id="summary" class="row" hidden>
   <span id="summaryText" class="grow"></span>

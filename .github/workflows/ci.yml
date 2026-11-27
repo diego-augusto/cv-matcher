@@ -36,3 +36,27 @@ jobs:
         run: gh release create "$GITHUB_REF_NAME" "cv-matcher-$GITHUB_REF_NAME.zip" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
+
+      # Chrome Web Store: upload the same zip and submit it for review. Skipped until the
+      # CWS_PUBLISHER_ID and CWS_ITEM_ID variables exist (the first version is uploaded by hand).
+      - name: Get a Chrome Web Store token
+        if: vars.CWS_ITEM_ID != ''
+        id: cws-auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.CWS_SERVICE_ACCOUNT_KEY }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+      - name: Publish to the Chrome Web Store
+        if: vars.CWS_ITEM_ID != ''
+        env:
+          TOKEN: ${{ steps.cws-auth.outputs.access_token }}
+          ITEM: publishers/${{ vars.CWS_PUBLISHER_ID }}/items/${{ vars.CWS_ITEM_ID }}
+        run: |
+          api=https://chromewebstore.googleapis.com
+          # ponytail: fails if the upload is still processing (IN_PROGRESS); poll :fetchStatus if that ever happens
+          curl -sf -X POST -H "Authorization: Bearer $TOKEN" -T "cv-matcher-$GITHUB_REF_NAME.zip" \
+            "$api/upload/v2/$ITEM:upload" | tee upload.json
+          test "$(jq -r .uploadState upload.json)" = SUCCEEDED
+          curl -sf -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}' \
+            "$api/v2/$ITEM:publish"

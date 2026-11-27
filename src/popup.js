@@ -1,6 +1,6 @@
 // The same page is both the action popup (icon click) and the options page (tab).
 const $ = (id) => document.getElementById(id);
-const FIELDS = ["apiKey", "cv", "model"];
+const FIELDS = ["apiKey", "cv", "model", "instructions"];
 const n = (x) => x.toLocaleString(locale());
 const usd = (value) => Number(value).toLocaleString(locale(), { style: "currency", currency: "USD" });
 const VERSION = chrome.runtime.getManifest().version;
@@ -10,6 +10,10 @@ let inPopup = false;
 let existing = false; // a résumé is already saved for this tab's job
 let setupOpen = false;
 let aboutOpen = false;
+
+// "system" (nothing chosen yet) follows the OS until the first click on the toggle.
+const isDark = () =>
+  currentTheme() === "system" ? matchMedia("(prefers-color-scheme: dark)").matches : currentTheme() === "dark";
 
 // Blocks only what is certainly wrong; other sk-ant-* formats are left for the API to judge.
 function keyProblem(key) {
@@ -28,6 +32,9 @@ function render() {
   const readable = /^(https?|file):/.test(tab?.url || "");
   const option = $("model").selectedOptions[0];
 
+  $("moon").toggleAttribute("hidden", isDark());
+  $("sun").toggleAttribute("hidden", !isDark());
+  $("theme").setAttribute("aria-label", isDark() ? t("p.toLight") : t("p.toDark"));
   $("keyMsg").textContent = problem;
   $("keyMsg").hidden = !problem;
   $("apiKey").setAttribute("aria-invalid", String(Boolean(problem)));
@@ -65,8 +72,8 @@ function render() {
   $("apiKey").value = stored.apiKey || "";
   $("cv").value = stored.cv || "";
   $("model").value = stored.model || "claude-opus-5-5";
+  $("instructions").value = stored.instructions || "";
   $("lang").value = currentLang();
-  $("theme").value = currentTheme();
 
   inPopup = !(await chrome.tabs.getCurrent());
   document.documentElement.classList.toggle("tab", !inPopup);
@@ -88,13 +95,16 @@ for (const id of FIELDS) {
 }
 
 // Language and theme: localStorage, read synchronously by i18n.js on every page.
-for (const id of ["lang", "theme"]) {
-  $(id).onchange = () => {
-    localStorage[id] = $(id).value;
-    applyPrefs();
-    render();
-  };
-}
+$("lang").onchange = () => {
+  localStorage.lang = $("lang").value;
+  applyPrefs();
+  render();
+};
+$("theme").onclick = () => {
+  localStorage.theme = isDark() ? "light" : "dark";
+  applyPrefs();
+  render();
+};
 
 for (const id of ["toggleSetup", "change"]) {
   $(id).onclick = () => {

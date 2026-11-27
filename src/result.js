@@ -127,7 +127,7 @@ async function generate(settings, signal) {
 }
 
 async function run() {
-  const { apiKey, cv, model = "claude-opus-5-5" } = await chrome.storage.local.get(["apiKey", "cv", "model"]);
+  const { apiKey, cv, model = "claude-opus-5-5", instructions } = await chrome.storage.local.get(["apiKey", "cv", "model", "instructions"]);
   if (!apiKey || !cv) {
     setStatus(t("e.setup.title"), { tone: "error" });
     return showNotice({ title: t("e.setup.title"), text: t("e.setup.text"), settings: true });
@@ -148,7 +148,7 @@ async function run() {
   timer = setInterval(tick, 1000);
 
   try {
-    const data = await generate({ apiKey, cv, model }, controller.signal);
+    const data = await generate({ apiKey, cv, model, instructions }, controller.signal);
     result = {
       job,
       cv: data.cv,

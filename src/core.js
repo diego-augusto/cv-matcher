@@ -56,7 +56,8 @@ export const startMode = (hash, { job, result }) =>
   hash === "#new" && job ? "generate" : result ? "saved" : "empty";
 
 // The headers and body of the /v1/messages call.
-export function buildRequest({ apiKey, cv, model, jobText }) {
+// `instructions` are the user's own standing preferences; they are appended, never replace SYSTEM.
+export function buildRequest({ apiKey, cv, model, jobText, instructions = "" }) {
   // Haiku has no server-side refusal fallback.
   const fallback = !model.includes("haiku");
   return {
@@ -73,7 +74,9 @@ export function buildRequest({ apiKey, cv, model, jobText }) {
       thinking: { type: "adaptive" },
       ...(fallback && { fallbacks: "default" }),
       output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
-      system: SYSTEM,
+      system: instructions
+        ? `${SYSTEM}\n\nThe candidate set the standing preferences in <preferences>. Follow them wherever they do not conflict with the rules above.\n<preferences>\n${instructions}\n</preferences>`
+        : SYSTEM,
       messages: [{ role: "user", content: `<resume>\n${cv}\n</resume>\n\n<page>\n${jobText}\n</page>` }],
     }),
   };

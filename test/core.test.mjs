@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import test from "node:test";
-import { ApiError, MAX_PDF_BYTES, MODEL_NAMES, PDF_SCHEMA, SCHEMA, buildPdfRequest, buildRequest, estimatePdfCost, foldEvent, inspectPdf, splitEvents, streamResult, explain, parseResponse, startMode } from "../src/core.js";
+import { ApiError, MAX_PDF_BYTES, MAX_RESULTS, MODEL_NAMES, PDF_SCHEMA, SCHEMA, buildPdfRequest, buildRequest, estimatePdfCost, findResult, foldEvent, inspectPdf, keepResult, savedResults, splitEvents, streamResult, explain, parseResponse, startMode } from "../src/core.js";
 
 const read = (file) => fs.readFileSync(`src/${file}`, "utf8");
 
@@ -19,6 +19,34 @@ test("startMode generates only with #new and a captured job", () => {
   assert.equal(startMode("#new", { result }), "saved");
   assert.equal(startMode("", { job }), "empty");
   assert.equal(startMode("#new", {}), "empty");
+});
+
+// ---------- history ----------
+
+test("history keeps the last MAX_RESULTS, newest first, and edits in place", () => {
+  const entry = (at, html = null) => ({ html, meta: { at } });
+  let list = [];
+  for (let at = 1; at <= MAX_RESULTS + 2; at++) list = keepResult(list, entry(at));
+  assert.equal(list.length, MAX_RESULTS);
+  assert.equal(list[0].meta.at, MAX_RESULTS + 2);
+  assert.equal(list.at(-1).meta.at, 3); // the two oldest were dropped
+
+  const edited = keepResult(list, entry(5, "<p>x</p>"));
+  assert.equal(edited.length, MAX_RESULTS);
+  assert.equal(edited.indexOf(edited.find((r) => r.meta.at === 5)), list.findIndex((r) => r.meta.at === 5));
+  assert.equal(edited.find((r) => r.meta.at === 5).html, "<p>x</p>");
+
+  assert.equal(findResult(list, null), list[0]); // plain "Open"
+  assert.equal(findResult(list, "7").meta.at, 7); // ?at= is a string
+  assert.equal(findResult(list, "1"), undefined); // dropped from the history
+  assert.equal(findResult([], null), undefined);
+});
+
+test("savedResults reads the single result saved before the history", () => {
+  const old = { meta: { at: 1 } };
+  assert.deepEqual(savedResults({ result: old }), [old]);
+  assert.deepEqual(savedResults({ results: [], result: old }), []);
+  assert.deepEqual(savedResults({}), []);
 });
 
 // ---------- buildRequest ----------

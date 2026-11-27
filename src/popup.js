@@ -1,5 +1,5 @@
 // The same page is both the action popup (icon click) and the options page (tab).
-import { ApiError, estimatePdfCost, explain, inspectPdf } from "./core.js";
+import { ApiError, MAX_RESULTS, estimatePdfCost, explain, inspectPdf, savedResults } from "./core.js";
 
 const $ = (id) => document.getElementById(id);
 const FIELDS = ["apiKey", "cv", "model", "instructions"];
@@ -9,7 +9,8 @@ const VERSION = chrome.runtime.getManifest().version;
 
 let tab; // active tab, popup only
 let inPopup = false;
-let existing = false; // a résumé is already saved for this tab's job
+let results = []; // the saved résumés, newest first
+let existing = null; // the newest résumé saved for this tab's job
 let setupOpen = false;
 let aboutOpen = false;
 
@@ -53,6 +54,7 @@ function render() {
   $("setup").classList.toggle("focus", importing);
   $("ready").hidden = !showMain || (showSetup && !importing);
   $("existing").hidden = !showMain || showSetup || !existing;
+  $("history").hidden = !showMain || showSetup || !results.length;
   $("summary").hidden = !showMain || showSetup;
   $("summaryText").textContent = t("p.summary", { n: n(cv.length), model: option.dataset.name });
   $("toggleSetup").hidden = !showMain || !configured;
@@ -73,7 +75,8 @@ function render() {
 }
 
 (async () => {
-  const stored = await chrome.storage.local.get([...FIELDS, "result", "pdfImport"]);
+  const stored = await chrome.storage.local.get([...FIELDS, "results", "result", "pdfImport"]);
+  results = savedResults(stored);
   job = stored.pdfImport ?? null;
   // A reading older than the worker's 5-minute limit will never report back.
   if (job?.step === "reading" && Date.now() - job.started > 5 * 60e3) job = { ...job, step: "error", error: { kind: "interrupted" } };
@@ -93,8 +96,9 @@ function render() {
   if (inPopup) {
     [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     $("tabHost").textContent = URL.canParse(tab?.url) ? new URL(tab.url).hostname : "";
-    existing = Boolean(tab?.url) && stored.result?.job?.url === tab.url;
+    existing = (tab?.url && results.find((r) => r.job.url === tab.url)) || null;
   }
+  renderHistory();
   render();
 })();
 
@@ -111,6 +115,7 @@ for (const id of FIELDS) {
 $("lang").onchange = () => {
   localStorage.lang = $("lang").value;
   applyPrefs();
+  renderHistory(); // dates and "(untitled page)" follow the language
   render();
 };
 $("theme").onclick = () => {
@@ -285,7 +290,29 @@ $("pdfUndo").onclick = () => {
 };
 $("expand").onclick = () => chrome.runtime.openOptionsPage();
 
-$("openExisting").onclick = () => chrome.tabs.create({ url: "result.html" });
+// No #new: result.html only shows what is saved, so reopening never calls the API.
+const openResult = (r) => chrome.tabs.create({ url: `result.html?at=${r.meta.at}` });
+$("openExisting").onclick = () => openResult(existing);
+
+function renderHistory() {
+  $("historyCount").textContent = t("p.historyCount", { n: n(results.length), max: n(MAX_RESULTS) });
+  $("historyList").replaceChildren(
+    ...results.map((r) => {
+      const li = document.createElement("li");
+      const button = li.appendChild(document.createElement("button"));
+      button.className = r === existing ? "history-item current" : "history-item";
+      button.onclick = () => openResult(r);
+      const title = button.appendChild(document.createElement("span"));
+      title.className = "history-title";
+      title.textContent = r.job.title || t("p.untitled");
+      const meta = button.appendChild(document.createElement("span"));
+      meta.className = "muted small";
+      const when = new Date(r.meta.at).toLocaleString(locale(), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      meta.textContent = [URL.canParse(r.job.url) ? new URL(r.job.url).hostname : "", when].filter(Boolean).join(" · ");
+      return li;
+    }),
+  );
+}
 
 $("generate").onclick = async () => {
   let text = "";

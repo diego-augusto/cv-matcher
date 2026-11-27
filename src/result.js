@@ -1,11 +1,11 @@
-import { MODEL_NAMES, buildRequest, explain, parseResponse, startMode } from "./core.js";
+import { MAX_RESULTS, MODEL_NAMES, buildRequest, explain, findResult, keepResult, parseResponse, savedResults, startMode } from "./core.js";
 
 const $ = (id) => document.getElementById(id);
 const n = (x) => x.toLocaleString(locale());
 const PAGE_PX = (267 * 96) / 25.4; // usable height of an A4 page (297 mm − 2 × 15 mm)
 
 let job; // { text, url, title }: the job being shown
-let result; // { job, cv, html, meta }: the last generated résumé, persisted
+let result; // { job, cv, html, meta }: the résumé being shown, one entry of the persisted `results`
 let controller;
 let timer;
 
@@ -120,7 +120,15 @@ function readyStatus() {
   setStatus(t("p.saved"), { tone: "ok", extra: `· ${pages === 1 ? t("r.pages1") : t("r.pagesN", { n: pages })}` });
 }
 
+// Reads the list again first: another result tab may have changed it.
+async function persist() {
+  const list = savedResults(await chrome.storage.local.get(["results", "result"]));
+  await chrome.storage.local.set({ results: keepResult(list, result) });
+  await chrome.storage.local.remove("result"); // the pre-history key
+}
+
 function showResult() {
+  history.replaceState(null, "", `${location.pathname}?at=${result.meta.at}`); // a reload shows this same résumé
   // html comes from this page's own DOM (plaintext-only edits), never from the model or the job page
   if (result.html) $("cv").innerHTML = result.html;
   else render(result.cv);
@@ -174,7 +182,7 @@ async function run() {
       // the model differs from the selected one when the fallback takes over
       meta: { model: data.model || model, at: Date.now(), cvChars: cv.length, usage: data.usage },
     };
-    await chrome.storage.local.set({ result });
+    await persist();
     showResult();
   } catch (e) {
     const notice = explain(e, t);
@@ -201,25 +209,28 @@ $("cv").addEventListener("input", () => {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     result.html = $("cv").innerHTML;
-    await chrome.storage.local.set({ result });
+    await persist();
     readyStatus();
   }, 400);
 });
 
 (async () => {
-  const stored = await chrome.storage.local.get(["job", "result"]);
+  const stored = await chrome.storage.local.get(["job", "results", "result"]);
+  const at = new URLSearchParams(location.search).get("at");
+  const saved = findResult(savedResults(stored), at);
   // Strip #new right away so that a reload never starts another paid generation.
-  const mode = startMode(location.hash, stored);
+  const mode = startMode(location.hash, { job: stored.job, result: saved });
   history.replaceState(null, "", location.pathname);
   if (mode === "generate") {
     job = stored.job;
     return run();
   }
   if (mode === "saved") {
-    result = stored.result;
+    result = saved;
     job = result.job;
     return showResult();
   }
   setStatus("");
+  if (at) return showNotice({ title: t("e.gone.title"), text: t("e.gone.text", { max: MAX_RESULTS }) });
   showNotice({ title: t("e.empty.title"), text: t("e.empty.text") });
 })();

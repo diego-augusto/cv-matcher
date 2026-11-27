@@ -61,6 +61,22 @@ export class ApiError extends Error {
 export const startMode = (hash, { job, result }) =>
   hash === "#new" && job ? "generate" : result ? "saved" : "empty";
 
+// ---------- history: the last MAX_RESULTS résumés, newest first, each identified by meta.at ----------
+
+export const MAX_RESULTS = 15;
+
+// Before the history existed, only one résumé was kept, under `result`.
+export const savedResults = ({ results, result }) => results ?? (result ? [result] : []);
+
+// No `at` (the popup's plain "Open", an old link): the newest. An `at` that was dropped from the history: none.
+export const findResult = (list, at) => (at ? list.find((r) => String(r.meta.at) === at) : list[0]);
+
+// An edit replaces its entry in place; a new résumé goes first and pushes the oldest out.
+export function keepResult(list, entry) {
+  if (list.some((r) => r.meta.at === entry.meta.at)) return list.map((r) => (r.meta.at === entry.meta.at ? entry : r));
+  return [entry, ...list].slice(0, MAX_RESULTS);
+}
+
 export const PDF_SCHEMA = obj({ text: str });
 
 export const PDF_SYSTEM = `You transcribe a résumé from the attached PDF into plain text so the candidate can keep it as their source résumé.

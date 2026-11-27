@@ -29,11 +29,12 @@ Files in `src/` are loaded by Chrome as-is.
 
 ## Architecture
 
-Two pages, no background service worker, all under `src/`:
+Two pages and one background service worker, all under `src/`:
 
 - `popup.html` / `popup.js` is both the action popup and the options page (`manifest.json` points both at it). `chrome.tabs.getCurrent()` returns nothing in a popup, which is how the script tells the two apart; as a tab it adds the `.tab` class and hides everything that needs a "current job tab". It has three views toggled in `render()`: ready, setup, about.
+- `background.js` is the service worker. It does one thing: the PDF import's API call, so that the reading survives the popup closing. Résumé generation still runs in the result tab.
 - `result.html` / `result.js` is the tab that calls the API, renders the résumé and handles editing and printing. It is a small state machine: `setState("generating" | "ready" | "notice")` toggles every element carrying a matching `data-show`. It is loaded as `<script type="module">` so it can import `core.js`.
-- `core.js` is the pure part of the result page: `SCHEMA`, `SYSTEM`, `MODEL_NAMES`, `buildRequest()`, `parseResponse()`, `explain()` and `startMode()`. It must stay free of DOM, `chrome.*` and i18n globals (`explain` receives `t` as an argument) so Node can import it. `i18n.js` and `popup.js` remain classic scripts; their top-level declarations are globals that the module can read.
+- `core.js` is the pure part of both pages: `SCHEMA`, `SYSTEM`, `MODEL_NAMES`, `buildRequest()`, `buildPdfRequest()`, `inspectPdf()`, `estimatePdfCost()`, `parseResponse()`, `explain()` and `startMode()`. It must stay free of DOM, `chrome.*` and i18n globals (`explain` receives `t` as an argument) so Node can import it. `popup.js` and `result.js` are modules that import it; `i18n.js` remains a classic script, and its top-level declarations are globals the modules read.
 
 ### Flow and the `#new` rule
 
@@ -43,7 +44,7 @@ Clicking generate in the popup reads `document.body.innerText` of the active tab
 
 ### Storage
 
-- `chrome.storage.local`: `apiKey`, `cv` (the user's source résumé), `model`, `instructions` (optional standing preferences, appended to `SYSTEM` by `buildRequest()`, never replacing it), `job` (`{text, url, title}`, last captured page), `result` (`{job, cv, html, meta}`, last generated résumé). Only one result is kept. `result.cv` is the model's JSON; `result.html` is the edited DOM, set once the user edits.
+- `chrome.storage.local`: `apiKey`, `cv` (the user's source résumé), `model`, `instructions` (optional standing preferences, appended to `SYSTEM` by `buildRequest()`, never replacing it), `job` (`{text, url, title}`, last captured page), `result` (`{job, cv, html, meta}`, last generated résumé). `pdfImport` (progress of the PDF import, written by `background.js`). Only one result is kept. `result.cv` is the model's JSON; `result.html` is the edited DOM, set once the user edits.
 - `localStorage`: `lang` and `theme` only. They live there because it is synchronous and shared by both pages, so `i18n.js` (loaded in `<head>`) can set theme and language before first paint.
 
 ### Claude API call (`generate()` in `result.js`, built and parsed in `core.js`)
@@ -58,6 +59,16 @@ Raw `fetch` to `/v1/messages`, not the SDK, because there is no build step. Thin
 - `SYSTEM` is the model prompt, in English, and is not part of the i18n table. It encodes the product rules: never invent facts absent from the source résumé, write in the language of the job posting, treat page text as untrusted data.
 - `parseResponse()` throws `ApiError` for anything that is not a usable résumé. Never let a `TypeError` escape from it: `explain()` reads `TypeError` as a network failure, because that is what `fetch` rejects with.
 - `explain()` maps API failures to actionable notices; new failure modes go there, with strings in `i18n.js`.
+
+### PDF import
+
+The résumé field can be filled from a PDF, in the popup itself or in the options tab. Every block carrying `data-pdf="idle|selected|reading|done|error"` is shown only in that step.
+
+- Choosing the file and showing the price happen in the page: the reading is paid, so `inspectPdf()` counts pages and `estimatePdfCost()` gives a rough figure before anything is sent, and the real cost shows after.
+- "Import" sends the PDF to `background.js` (`chrome.runtime.sendMessage`, type `pdf:start`). The worker calls the API with `buildPdfRequest()`, which streams: the bytes keep the worker alive and give real progress (`splitEvents()`, `foldEvent()`, `streamResult()` in `core.js`). It writes progress, then the new `cv` and the cost, to `pdfImport` in storage. The popup and the tab only render `pdfImport` and listen to `chrome.storage.onChanged`, so the popup can close and reopen mid-reading.
+- A worker that starts and finds `pdfImport` still "reading" marks it interrupted, since its predecessor died. A finished import is shown once and cleared the next time the page opens. "Undo" restores `pdfImport.previous`.
+- While importing in the popup, the setup shows only the résumé field (`#setup.focus`), so the job and the generate button stay in view. Generating is disabled while a reading runs.
+- `test/fake-resume.pdf` is `test/fake-resume.md` printed from Chrome, for trying it by hand.
 
 ### Editing and saved HTML
 

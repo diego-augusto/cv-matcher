@@ -14,6 +14,9 @@
   --error: light-dark(#b3261e, #ffb4ab);
   --error-bg: light-dark(#fdecea, #4a1f1c);
   --ok: light-dark(#1e6b3a, #8fd4a6);
+  --ok-bg: light-dark(#e8f3ec, #1b3524);
+  --warn: light-dark(#7a4b00, #ffd27a);
+  --warn-bg: light-dark(#fff6e0, #3a2e10);
 }
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }

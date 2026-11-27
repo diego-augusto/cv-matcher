@@ -49,7 +49,22 @@
   #noticeActions { display: flex; flex-wrap: wrap; gap: 12px; }
   #noticeDetail { border-top: 1px solid var(--line); padding-top: 12px; font: 12px ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
 
-  #meta { flex: 1 1 280px; min-width: 0; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; gap: 12px; }
+  #side { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+  #match { padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; gap: 14px; }
+  #match h2 { margin: 0; font-size: 14px; font-weight: 650; }
+  #matchHead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  #matchCount { font-weight: 600; font-variant-numeric: tabular-nums; }
+  #matchBar { height: 6px; margin-top: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  #matchBar span { display: block; height: 100%; background: var(--ok); }
+  #match h3 { margin: 0 0 6px; }
+  #match ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  #match li { display: flex; gap: 8px; }
+  #match li::before { flex: none; width: 16px; text-align: center; font-weight: 700; }
+  #covered li::before { content: "✓"; color: var(--ok); }
+  #missing li::before { content: "−"; color: var(--warn); }
+  #missingNote { margin-top: 6px; }
+
+  #meta { padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; gap: 12px; }
   #meta h2 { margin: 0; font-size: 14px; font-weight: 650; }
   #metaList { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   #metaList .wide { grid-column: 1 / -1; }
@@ -63,7 +78,7 @@
   @page { margin: 0; }
   @media print {
     body { background: #fff; padding: 0 15mm; }
-    #bar, #meta, #tip, #notice, #skeleton { display: none !important; }
+    #bar, #side, #tip, #notice, #skeleton { display: none !important; }
     #layout { display: block; padding: 0; }
     #stage { overflow: visible; padding: 0; }
     .paper { width: auto; margin: 0; padding: 0; box-shadow: none; outline: none !important; }
@@ -132,6 +147,26 @@
     </div>
   </div>
 
+  <div id="side">
+  <section id="match" aria-labelledby="matchTitle" hidden>
+    <div>
+      <div id="matchHead">
+        <h2 id="matchTitle" data-i18n="r.matchTitle"></h2>
+        <span id="matchCount"></span>
+      </div>
+      <div id="matchBar" aria-hidden="true"><span></span></div>
+    </div>
+    <div id="coveredBlock">
+      <h3 id="coveredTitle" class="eyebrow"></h3>
+      <ul id="covered"></ul>
+    </div>
+    <div id="missingBlock">
+      <h3 id="missingTitle" class="eyebrow"></h3>
+      <ul id="missing"></ul>
+      <p id="missingNote" class="muted small" data-i18n="r.missingNote"></p>
+    </div>
+  </section>
+
   <aside id="meta" aria-labelledby="metaTitle" hidden>
     <h2 id="metaTitle" data-i18n="r.metaTitle"></h2>
     <dl id="metaList"></dl>
@@ -140,6 +175,7 @@
       <textarea id="jobText" readonly></textarea>
     </div>
   </aside>
+  </div>
 </div>
 <script type="module" src="result.js"></script>
 </html>

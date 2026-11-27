@@ -4,7 +4,7 @@ This file provides guidance to AI coding agents when working with code in this r
 
 ## What this is
 
-CV Matcher is a Chrome extension (Manifest V3) that reads the job posting on the current tab, combines it with the user's full résumé, and asks Claude to produce a tailored résumé that the user prints to PDF. Currently loaded unpacked; intended for a global audience.
+CV Matcher is a Chrome extension (Manifest V3) that reads the job posting on the current tab, combines it with the user's full résumé, and asks Claude to produce a tailored résumé that the user prints to PDF. The problem it solves: each company screens applications with its own applicant tracking system (ATS) that scores the résumé against that one posting, so the best practice is a résumé tailored to every job, which is tedious by hand. Currently loaded unpacked; intended for a global audience.
 
 ## Conventions
 

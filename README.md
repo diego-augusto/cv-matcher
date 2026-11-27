@@ -6,6 +6,8 @@ A Chrome extension that generates a résumé tailored to the job posting open on
 
 It reads the page text, combines it with your full résumé, and returns a version of up to two pages that highlights what is most relevant to that job, ready to save as a PDF.
 
+Why: companies screen applications through different applicant tracking systems (ATS), and each one scores your résumé against that specific posting. Sending one generic résumé everywhere loses points in all of them, so the usual advice is to tailor the résumé to every job. That is tedious by hand; CV Matcher does it in one click, using the posting's own terms and only what is true in your résumé.
+
 Project page: <https://diego-augusto.github.io/cv-matcher/>
 
 ## Installation

@@ -6,6 +6,8 @@ A Chrome extension that generates a résumé tailored to the job posting open on
 
 It reads the page text, combines it with your full résumé, and returns a version of up to two pages that highlights what is most relevant to that job, ready to save as a PDF.
 
+Project page: <https://diego-augusto.github.io/cv-matcher/>
+
 ## Installation
 
 1. Open `chrome://extensions`.
@@ -52,6 +54,7 @@ To change these rules, edit the `SYSTEM` constant in `src/core.js`.
 | `src/core.js` | Logic with no DOM: the prompt, the request, response parsing and error mapping. |
 | `src/i18n.js` | Interface strings in the three languages, and theme handling. |
 | `src/ui.css` | Colors and controls shared by both screens (light and dark theme). |
+| `docs/` | The project page, served by GitHub Pages from `main`. Not part of the extension. |
 | `test/core.test.mjs` | Unit tests for `core.js` and static checks on the extension files. |
 | `test/check-i18n.mjs` | Checks that the three languages have the same keys. |
 | `test/fake-resume.md` | Fictional résumé for testing. |

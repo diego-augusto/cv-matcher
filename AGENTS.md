@@ -52,7 +52,7 @@ Clicking generate in the popup reads `document.body.innerText` of the active tab
 Raw `fetch` to `/v1/messages`, not the SDK, because there is no build step. Things that are easy to break:
 
 - `anthropic-dangerous-direct-browser-access: true` is required for a browser-origin call.
-- Structured output via `output_config.format` with `SCHEMA`; every object needs `additionalProperties: false` and all properties required. The résumé is rendered from this JSON with `textContent` only, never model HTML.
+- Structured output via `output_config.format` with `SCHEMA`; every object needs `additionalProperties: false` and all properties required. The résumé is rendered from this JSON with `textContent` only, never model HTML. `requirements` (`covered` and `missing`) feeds the panel beside the sheet (`showMatch()`); it is never printed, and results saved before it existed simply hide the panel.
 - `fallbacks: "default"` plus the `server-side-fallback-2026-07-01` beta header are sent for every model except Haiku, which has no server-side fallback.
 - `thinking: {type: "adaptive"}`; do not send `budget_tokens`, `temperature` or a disabled thinking config, the current models reject them.
 - The model list is duplicated: `<option>`s in `popup.html` (with `data-name`, `data-in`, `data-out` prices) and `MODEL_NAMES` in `core.js`. A test keeps them in sync.

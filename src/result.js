@@ -74,6 +74,22 @@ function showMeta({ model, at, cvChars, usage }) {
   $("meta").hidden = false;
 }
 
+// Results saved before the requirements existed have none; the panel then stays hidden.
+function showMatch(requirements) {
+  $("match").hidden = !requirements;
+  if (!requirements) return;
+  const { covered, missing } = requirements;
+  const total = covered.length + missing.length;
+  $("matchCount").textContent = t("r.matchCount", { covered: n(covered.length), total: n(total) });
+  $("matchBar").firstChild.style.width = `${total ? (100 * covered.length) / total : 0}%`;
+  for (const [key, items] of [["covered", covered], ["missing", missing]]) {
+    $(`${key}Block`).hidden = !items.length;
+    $(`${key}Title`).textContent = t(`r.${key}`, { n: n(items.length) });
+    $(key).replaceChildren();
+    for (const item of items) el($(key), "li", item);
+  }
+}
+
 function render(cv) {
   const root = $("cv");
   root.replaceChildren();
@@ -111,6 +127,7 @@ function showResult() {
   $("cv").lang = result.cv.language || "";
   document.title = `CV - ${result.cv.name}`; // Chrome uses it as the suggested PDF filename
   showMeta(result.meta);
+  showMatch(result.cv.requirements);
   setState("ready");
   readyStatus();
 }
@@ -136,6 +153,7 @@ async function run() {
   const started = Date.now();
   controller = new AbortController();
   setState("generating");
+  showMatch(null);
   showMeta({ model, at: started, cvChars: cv.length });
   const tick = () => {
     const s = Math.floor((Date.now() - started) / 1000);

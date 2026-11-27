@@ -133,7 +133,8 @@ test("SCHEMA is strict: every object closes additionalProperties and requires al
     }
     if (node.items) walk(node.items);
   })(SCHEMA);
-  assert.equal(objects, 3);
+  assert.equal(objects, 4);
+  assert.deepEqual(Object.keys(SCHEMA.properties.requirements.properties), ["covered", "missing"]);
 });
 
 // ---------- parseResponse ----------

@@ -3,81 +3,126 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CV Matcher: a résumé tailored to each job posting</title>
+<title data-i18n="title">CV Matcher: your résumé, rewritten for each job</title>
 <meta name="description" content="A Chrome extension that reads the job posting on the current tab and uses Claude to tailor your résumé to it, ready to save as a PDF.">
 <meta property="og:title" content="CV Matcher">
-<meta property="og:description" content="A résumé tailored to the job posting you are looking at, without inventing anything.">
+<meta property="og:description" content="Your résumé, rewritten for the job posting you are looking at, without inventing anything.">
 <meta property="og:image" content="https://diego-augusto.github.io/cv-matcher/icon.png">
 <link rel="icon" href="icon.png">
 <style>
-/* Same tokens as src/ui.css, so the page matches the extension. */
+/* Colors follow src/ui.css so the page matches the extension. The English text lives in the markup;
+   page.js swaps in the pt and es strings by data-i18n key. */
 :root {
   color-scheme: light dark;
+  --navy: #1f3a5f;
+  --gold: #f0b440;
   --accent: light-dark(#1f3a5f, #9dbdea);
   --on-accent: light-dark(#fff, #10202f);
   --ink: light-dark(#1a1f27, #e8eaee);
   --muted: light-dark(#5b6472, #a3acb9);
   --line: light-dark(#d9dde3, #3a414c);
-  --surface: light-dark(#fff, #1e2228);
-  --ground: light-dark(#eef0f3, #15181d);
-  --soft: light-dark(#f3f5f8, #272c34);
-  --mark: light-dark(#fbe7a8, #5c4a12);
+  --field-line: light-dark(#c3c9d2, #4b5360);
+  --bg: light-dark(#fff, #15181d);
+  --alt: light-dark(#f3f5f8, #1a1e24);
+  --panel: light-dark(#eef0f3, #1e2228);
+  --card: light-dark(#fff, #232830);
+  --mark: light-dark(#f8d98a, #5c4a12);
+  --underline: light-dark(#f8d98a, #7a5d14);
+  --ok: light-dark(#1e6b3a, #8fd4a6);
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--ground); }
+body { margin: 0; font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
 a { color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+.wrap { max-width: 1144px; margin: 0 auto; padding-left: 32px; padding-right: 32px; }
+h1, h2, h3, p { margin: 0; }
+h2 { font-size: 34px; line-height: 1.15; letter-spacing: -.02em; font-weight: 720; }
+h3 { font-size: 19px; line-height: 1.3; margin-bottom: 6px; }
+.sub { font-size: 18px; color: var(--muted); margin-top: 8px; }
+.eyebrow { font-size: 13px; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+code { background: var(--alt); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 14px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 50px; padding: 0 24px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent); color: var(--on-accent); font-weight: 650; text-decoration: none; }
+.btn.ghost { background: none; color: var(--accent); }
 
-header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-top: 20px; padding-bottom: 20px; }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 17px; color: var(--ink); text-decoration: none; margin-right: auto; }
-.brand img { width: 32px; height: 32px; }
-nav { display: flex; gap: 20px; flex-wrap: wrap; }
-nav a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 28px; padding-top: 20px; padding-bottom: 20px; }
+.brand { display: flex; align-items: center; gap: 12px; margin-right: auto; color: var(--ink); font-weight: 650; font-size: 18px; text-decoration: none; }
+.brand img { width: 38px; height: 38px; }
+nav { display: flex; flex-wrap: wrap; gap: 0 24px; font-size: 15px; font-weight: 600; }
+nav a { color: var(--muted); text-decoration: none; line-height: 44px; }
 nav a:hover { color: var(--accent); }
+.langs { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--field-line); border-radius: 10px; }
+.langs button { min-width: 44px; height: 38px; border: 0; border-radius: 7px; background: none; color: var(--muted); font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; }
+.langs button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
 
-.hero { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; padding-top: 48px; padding-bottom: 72px; }
-h1 { font-size: clamp(32px, 5vw, 46px); line-height: 1.12; letter-spacing: -.02em; margin: 12px 0 16px; text-wrap: balance; }
-.eyebrow { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-.lead { font-size: 18px; color: var(--muted); margin: 0 0 28px; max-width: 46ch; }
-.actions { display: flex; gap: 12px; flex-wrap: wrap; }
-.btn { display: inline-flex; align-items: center; min-height: 46px; padding: 0 20px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: var(--on-accent); font-weight: 600; text-decoration: none; }
-.btn.ghost { background: transparent; color: var(--accent); }
-.fine { font-size: 13px; color: var(--muted); margin-top: 16px; }
+.hero { display: flex; flex-wrap: wrap; align-items: center; gap: 56px; padding-top: 56px; padding-bottom: 88px; }
+.hero > * { flex: 1 1 440px; min-width: 0; }
+h1 { margin: 16px 0 20px; font-size: clamp(38px, 5.2vw, 58px); line-height: 1.06; letter-spacing: -.03em; font-weight: 750; }
+h1 em { font-style: normal; background: linear-gradient(transparent 62%, var(--underline) 62%); }
+.lead { font-size: 19px; line-height: 1.55; color: var(--muted); max-width: 31em; margin-bottom: 32px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.fine { margin-top: 20px; font-size: 14px; color: var(--muted); }
 
-/* Hero picture: a posting on the left of an arrow, the tailored sheet on the right. */
-.demo { display: grid; gap: 14px; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; font-size: 13px; line-height: 1.5; }
-.card p { margin: 6px 0 0; color: var(--muted); }
-.card mark { background: var(--mark); color: inherit; padding: 0 2px; border-radius: 2px; }
-.arrow { text-align: center; color: var(--muted); font-size: 13px; font-weight: 600; }
-.sheet { background: #fff; color: #1a1f27; border-color: #d9dde3; box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
-.sheet b.name { display: block; font-size: 17px; color: #1f3a5f; }
-.sheet .role { color: #5b6472; }
-.sheet h3 { margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #1f3a5f; border-bottom: 1px solid #d9dde3; padding-bottom: 3px; }
+/* Hero picture: the posting, then the tailored sheet. The sheet is always light, like the real one. */
+.demo { display: flex; flex-direction: column; gap: 14px; padding: 32px; border-radius: 20px; background: var(--panel); }
+.demo mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 3px; }
+.posting { width: 82%; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); font-size: 14px; line-height: 1.55; }
+.posting .eyebrow { display: block; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+.posting b { display: block; font-weight: 650; margin-bottom: 4px; }
+.posting p { color: var(--muted); }
+.arrow { align-self: center; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 650; color: var(--accent); }
+.sheet { width: 88%; align-self: flex-end; padding: 26px 28px 30px; border-radius: 6px; background: #fff; color: #1a1f27; box-shadow: 0 18px 40px rgb(10 20 40 / .22); font-size: 13px; line-height: 1.5; }
+.sheet mark { background: #f8d98a; }
+.sheet .name { font-size: 21px; font-weight: 750; color: var(--navy); line-height: 1.2; }
+.sheet .role { color: #5b6472; margin-top: 2px; }
+.sheet h4 { margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #d9dde3; font-size: 11px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: .07em; }
 .sheet ul { margin: 0; padding-left: 18px; }
-.sheet mark { background: #fbe7a8; }
 
-section { padding: 56px 0; border-top: 1px solid var(--line); }
-h2 { font-size: 26px; letter-spacing: -.01em; margin: 0 0 8px; }
-.sub { color: var(--muted); margin: 0 0 28px; max-width: 62ch; }
-.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
-.box h3 { margin: 0 0 6px; font-size: 16px; }
-.box p { margin: 0; color: var(--muted); font-size: 15px; }
-.num { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 14px; margin-bottom: 12px; }
-ol.steps, ul.plain { margin: 0; padding-left: 22px; max-width: 68ch; }
-ol.steps li, ul.plain li { margin-bottom: 8px; }
-code { background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font-size: .9em; }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.facts { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.facts ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px 24px; margin: 0 auto; padding-top: 22px; padding-bottom: 22px; list-style: none; font-size: 15px; font-weight: 600; }
+.facts li { display: flex; align-items: center; gap: 10px; }
+.facts svg { flex: none; stroke: var(--ok); }
 
-footer { border-top: 1px solid var(--line); padding-top: 28px; padding-bottom: 40px; color: var(--muted); font-size: 14px; }
+section { padding: 80px 0; }
+.alt { background: var(--alt); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-top: 36px; }
+.card { padding: 26px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.card p { color: var(--muted); }
+.card p b { color: var(--ink); }
+.big { display: block; margin-bottom: 18px; font-size: 40px; font-weight: 750; line-height: 1; color: var(--accent); }
 
-@media (max-width: 760px) {
-  .hero, .two { grid-template-columns: 1fr; }
-  .grid { grid-template-columns: 1fr; }
-  .hero { padding-top: 24px; gap: 32px; }
+.rules { background: var(--navy); color: #fff; }
+.rules .eyebrow { color: #f8d98a; }
+.rules h2 { max-width: 18em; margin-top: 10px; }
+.rules .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 36px; margin-top: 44px; }
+.rules .cols > div { padding-top: 18px; border-top: 2px solid var(--gold); }
+.rules p { color: #d3deec; }
+
+.two { display: flex; flex-wrap: wrap; gap: 48px 64px; }
+.two > * { flex: 1 1 400px; min-width: 0; }
+.steps { display: flex; flex-direction: column; gap: 18px; margin: 28px 0 0; padding: 0; list-style: none; counter-reset: step; }
+.steps li { display: flex; gap: 16px; counter-increment: step; }
+.steps li::before { content: counter(step); flex: none; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--panel); color: var(--accent); font-size: 14px; font-weight: 700; }
+.steps + .btn { margin-top: 30px; }
+.boxes { gap: 24px; }
+.boxes .card { padding: 32px; }
+.boxes h2 { font-size: 26px; margin-bottom: 16px; }
+.boxes ul { display: flex; flex-direction: column; gap: 10px; margin: 0; padding-left: 20px; }
+
+footer { display: flex; flex-wrap: wrap; gap: 12px 24px; padding-top: 32px; padding-bottom: 44px; font-size: 14px; color: var(--muted); }
+footer p { margin-right: auto; }
+
+@media (max-width: 640px) {
+  .wrap { padding-left: 20px; padding-right: 20px; }
+  nav { flex-basis: 100%; gap: 0 20px; }
+  .hero { gap: 32px; padding-top: 28px; padding-bottom: 48px; }
+  .lead { font-size: 17px; }
+  .actions .btn, .steps + .btn { width: 100%; }
+  .demo { padding: 18px; }
+  .posting, .sheet { width: 100%; }
+  section { padding: 52px 0; }
+  h2 { font-size: 28px; }
+  .boxes .card { padding: 24px; }
 }
 </style>
 </head>
@@ -86,114 +131,137 @@ footer { border-top: 1px solid var(--line); padding-top: 28px; padding-bottom: 4
 <header class="wrap">
   <a class="brand" href="#top"><img src="icon.png" alt="">CV Matcher</a>
   <nav>
-    <a href="#how">How it works</a>
-    <a href="#install">Install</a>
-    <a href="#privacy">Privacy</a>
+    <a href="#how" data-i18n="nav.how">How it works</a>
+    <a href="#install" data-i18n="nav.install">Install</a>
+    <a href="#privacy" data-i18n="nav.privacy">Privacy</a>
     <a href="https://github.com/diego-augusto/cv-matcher">GitHub</a>
   </nav>
+  <div class="langs" role="group" aria-label="Language">
+    <button type="button" data-lang="en" lang="en" title="English" aria-pressed="true">EN</button>
+    <button type="button" data-lang="pt" lang="pt" title="Português" aria-pressed="false">PT</button>
+    <button type="button" data-lang="es" lang="es" title="Español" aria-pressed="false">ES</button>
+  </div>
 </header>
 
 <main id="top">
   <div class="wrap hero">
     <div>
-      <span class="eyebrow">Chrome extension · Beta</span>
-      <h1>A résumé tailored to the job you are looking at.</h1>
-      <p class="lead">CV Matcher reads the job posting on the current tab, compares it with your full résumé, and asks Claude for a version of up to two pages that puts the most relevant experience first. You review it, edit it and save it as a PDF.</p>
+      <span class="eyebrow" data-i18n="hero.eyebrow">Chrome extension · Beta</span>
+      <h1 data-i18n="hero.title">Your résumé, rewritten for <em>this job</em>.</h1>
+      <p class="lead" data-i18n="hero.lead">CV Matcher reads the job posting on the tab you have open, compares it with your full résumé, and asks Claude for a version of up to two pages that puts the most relevant experience first.</p>
       <div class="actions">
-        <a class="btn" href="#install">Install</a>
-        <a class="btn ghost" href="https://github.com/diego-augusto/cv-matcher">View the source</a>
+        <a class="btn" href="#install" data-i18n="hero.install">Install the extension</a>
+        <a class="btn ghost" href="https://github.com/diego-augusto/cv-matcher" data-i18n="hero.source">View the source</a>
       </div>
-      <p class="fine">Free and open source. You use your own Anthropic API key.</p>
+      <p class="fine" data-i18n="hero.fine">Free and open source. You use your own Anthropic API key.</p>
     </div>
 
     <div class="demo" aria-hidden="true">
-      <div class="card">
-        <span class="eyebrow">Job posting on the tab</span>
-        <p>We are hiring a backend engineer with <mark>Go</mark> experience to scale our <mark>payments API</mark>. You will own <mark>observability</mark> and on-call for the platform.</p>
+      <div class="posting">
+        <span class="eyebrow" data-i18n="demo.label">Job posting on the tab</span>
+        <b data-i18n="demo.job">Senior Backend Engineer</b>
+        <p data-i18n="demo.posting">We need <mark>Go</mark> experience to scale our <mark>payments API</mark>. You will own <mark>observability</mark> and on-call.</p>
       </div>
-      <div class="arrow">↓ tailored with Claude</div>
-      <div class="card sheet">
-        <b class="name">Alex Rivera</b>
-        <span class="role">Backend Engineer</span>
-        <h3>Experience</h3>
+      <div class="arrow">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v12M3 9l5 5 5-5"/></svg>
+        <span data-i18n="demo.arrow">Tailored with Claude</span>
+      </div>
+      <div class="sheet">
+        <div class="name">Alex Rivera</div>
+        <div class="role" data-i18n="demo.role">Backend Engineer · Lisbon · alex@example.com</div>
+        <h4 data-i18n="demo.experience">Experience</h4>
         <ul>
-          <li>Rebuilt the <mark>payments API</mark> in <mark>Go</mark>, cutting p99 latency by 40%.</li>
-          <li>Introduced tracing and alerting, the team's first <mark>observability</mark> stack.</li>
+          <li data-i18n="demo.bullet1">Rebuilt the <mark>payments API</mark> in <mark>Go</mark>, cutting p99 latency by 40%.</li>
+          <li data-i18n="demo.bullet2">Introduced tracing and alerting, the team's first <mark>observability</mark> stack.</li>
         </ul>
-        <h3>Skills</h3>
-        Go · PostgreSQL · Kubernetes · OpenTelemetry
+        <h4 data-i18n="demo.skills">Skills</h4>
+        <div>Go · PostgreSQL · Kubernetes · OpenTelemetry</div>
       </div>
     </div>
   </div>
 
-  <section id="how"><div class="wrap">
-    <h2>How it works</h2>
-    <p class="sub">You paste your complete résumé once. After that, each job takes one click.</p>
-    <div class="grid">
-      <div class="box"><span class="num">1</span><h3>Open a job posting</h3><p>Any site works. Click the extension icon, then <b>Generate résumé for this job</b>.</p></div>
-      <div class="box"><span class="num">2</span><h3>Wait about a minute</h3><p>A new tab shows the tailored résumé on an A4 sheet, written in the language of the posting.</p></div>
-      <div class="box"><span class="num">3</span><h3>Edit and save the PDF</h3><p>Click any text to adjust it, check the page estimate, then <b>Print / Save PDF</b>.</p></div>
+  <div class="facts">
+    <ul class="wrap">
+      <li><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8"/></svg><span data-i18n="fact.server">No account, no server</span></li>
+      <li><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8"/></svg><span data-i18n="fact.invent">Never invents experience</span></li>
+      <li><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8"/></svg><span data-i18n="fact.sites">Works on any job site</span></li>
+      <li><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5l3.5 3.5 7.5-8"/></svg><span data-i18n="fact.langs">English, Portuguese, Spanish</span></li>
+    </ul>
+  </div>
+
+  <section id="how" class="alt"><div class="wrap">
+    <h2 data-i18n="how.title">How it works</h2>
+    <p class="sub" data-i18n="how.sub">You paste your complete résumé once. After that, each job takes one click.</p>
+    <div class="cards">
+      <div class="card"><span class="big">1</span><h3 data-i18n="how.1.title">Open a job posting</h3><p data-i18n="how.1.text">On any site. Click the extension icon, then <b>Generate résumé for this job</b>.</p></div>
+      <div class="card"><span class="big">2</span><h3 data-i18n="how.2.title">Wait about a minute</h3><p data-i18n="how.2.text">A new tab shows the tailored résumé on an A4 sheet, written in the language of the posting.</p></div>
+      <div class="card"><span class="big">3</span><h3 data-i18n="how.3.title">Edit and save the PDF</h3><p data-i18n="how.3.text">Click any text to adjust it, check the page estimate, then <b>Print / Save PDF</b>.</p></div>
     </div>
   </div></section>
 
-  <section><div class="wrap">
-    <h2>Rules the model follows</h2>
-    <p class="sub">A tailored résumé is only useful if it is still true.</p>
-    <div class="grid">
-      <div class="box"><h3>Nothing invented</h3><p>Claude selects, reorders and rewrites what is in your résumé. It does not add experience, skills or results you did not state.</p></div>
-      <div class="box"><h3>Language of the posting</h3><p>A posting in Spanish gets a résumé in Spanish, whatever language your source résumé or the interface is in.</p></div>
-      <div class="box"><h3>The page is only data</h3><p>Instructions hidden in the page text are ignored. Your own standing instructions can be added in settings.</p></div>
+  <section class="rules"><div class="wrap">
+    <span class="eyebrow" data-i18n="rules.eyebrow">Rules the model follows</span>
+    <h2 data-i18n="rules.title">A tailored résumé is only useful if it is still true.</h2>
+    <div class="cols">
+      <div><h3 data-i18n="rules.1.title">Nothing invented</h3><p data-i18n="rules.1.text">Claude selects, reorders and rewrites what is in your résumé. It does not add experience, skills or results you did not state.</p></div>
+      <div><h3 data-i18n="rules.2.title">Language of the posting</h3><p data-i18n="rules.2.text">A posting in Spanish gets a résumé in Spanish, whatever language your source résumé or the interface is in.</p></div>
+      <div><h3 data-i18n="rules.3.title">The page is only data</h3><p data-i18n="rules.3.text">Instructions hidden in the page text are ignored. Your own standing instructions can be added in settings.</p></div>
     </div>
   </div></section>
 
   <section id="install"><div class="wrap two">
     <div>
-      <h2>Install</h2>
-      <p class="sub">CV Matcher is in beta and not yet on the Chrome Web Store, so it is loaded by hand.</p>
+      <h2 data-i18n="install.title">Install</h2>
+      <p class="sub" data-i18n="install.sub">CV Matcher is in beta and not yet on the Chrome Web Store, so it is loaded by hand.</p>
       <ol class="steps">
-        <li><a href="https://github.com/diego-augusto/cv-matcher/archive/refs/heads/main.zip">Download the ZIP</a> and unpack it.</li>
-        <li>Open <code>chrome://extensions</code> and turn on <b>Developer mode</b>.</li>
-        <li>Click <b>Load unpacked</b> and select the <code>src</code> folder.</li>
+        <li><span data-i18n="install.1">Download the ZIP and unpack it.</span></li>
+        <li><span data-i18n="install.2">Open <code>chrome://extensions</code> and turn on <b>Developer mode</b>.</span></li>
+        <li><span data-i18n="install.3">Click <b>Load unpacked</b> and select the <code>src</code> folder.</span></li>
       </ol>
+      <a class="btn" href="https://github.com/diego-augusto/cv-matcher/archive/refs/heads/main.zip">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5v9M5 8l4 4 4-4M3 15.5h12"/></svg>
+        <span data-i18n="install.download">Download ZIP</span>
+      </a>
     </div>
     <div>
-      <h2>Set up</h2>
-      <p class="sub">The popup opens on setup the first time. Everything is saved as you type.</p>
+      <h2 data-i18n="setup.title">Set up</h2>
+      <p class="sub" data-i18n="setup.sub">The popup opens on setup the first time. Everything is saved as you type.</p>
       <ol class="steps">
-        <li>Create an API key at <a href="https://platform.claude.com">platform.claude.com</a> and paste it.</li>
-        <li>Pick the Claude model. The popup shows the price of each one.</li>
-        <li>Paste your full résumé as plain text or Markdown. The more complete it is, the better the selection for each job.</li>
+        <li><span data-i18n="setup.1">Create an API key at <a href="https://platform.claude.com">platform.claude.com</a> and paste it.</span></li>
+        <li><span data-i18n="setup.2">Pick the Claude model. The popup shows the price of each one.</span></li>
+        <li><span data-i18n="setup.3">Paste your full résumé as plain text or Markdown. The more complete it is, the better the selection for each job.</span></li>
       </ol>
     </div>
   </div></section>
 
-  <section id="privacy"><div class="wrap two">
-    <div>
-      <h2>Privacy</h2>
-      <ul class="plain">
-        <li>There is no CV Matcher server, no account and no analytics.</li>
-        <li>Your API key and résumé are stored in <code>chrome.storage.local</code>, unencrypted, only in your browser.</li>
-        <li>Data is sent only to <code>api.anthropic.com</code>: your résumé, your instructions and the text of the posting, when you ask for a generation.</li>
-        <li>A page is read only when you click generate (the <code>activeTab</code> permission).</li>
+  <section id="privacy" class="alt"><div class="wrap two boxes">
+    <div class="card">
+      <h2 data-i18n="privacy.title">Privacy</h2>
+      <ul>
+        <li data-i18n="privacy.1">There is no CV Matcher server, no account and no analytics.</li>
+        <li data-i18n="privacy.2">Your API key and résumé are stored in <code>chrome.storage.local</code>, unencrypted, only in your browser.</li>
+        <li data-i18n="privacy.3">Data is sent only to <code>api.anthropic.com</code>: your résumé, your instructions and the text of the posting, when you ask for a generation.</li>
+        <li data-i18n="privacy.4">A page is read only when you click generate.</li>
       </ul>
     </div>
-    <div>
-      <h2>Cost and limits</h2>
-      <ul class="plain">
-        <li>Each generation is billed to your Anthropic account. Reloading or reopening a saved résumé never calls the API.</li>
-        <li>Only the last résumé is kept; a new generation replaces it.</li>
-        <li>Chrome's internal pages cannot be read, and postings inside an iframe may come through without text.</li>
-        <li>The interface is available in English, Portuguese and Spanish, with light and dark themes.</li>
+    <div class="card">
+      <h2 data-i18n="cost.title">Cost and limits</h2>
+      <ul>
+        <li data-i18n="cost.1">Each generation is billed to your Anthropic account. Reloading or reopening a saved résumé never calls the API.</li>
+        <li data-i18n="cost.2">Only the last résumé is kept; a new generation replaces it.</li>
+        <li data-i18n="cost.3">Chrome's internal pages cannot be read, and postings inside an iframe may come through without text.</li>
+        <li data-i18n="cost.4">The on-screen page count is an estimate for A4 paper.</li>
       </ul>
     </div>
   </div></section>
 </main>
 
 <footer class="wrap">
-  CV Matcher is an independent open source project, not affiliated with Anthropic.
-  <a href="https://github.com/diego-augusto/cv-matcher">Source</a> ·
-  <a href="https://github.com/diego-augusto/cv-matcher/issues">Report a problem</a>
+  <p data-i18n="footer.note">CV Matcher is an independent open source project, not affiliated with Anthropic.</p>
+  <a href="https://github.com/diego-augusto/cv-matcher" data-i18n="footer.source">Source</a>
+  <a href="https://github.com/diego-augusto/cv-matcher/issues" data-i18n="footer.report">Report a problem</a>
 </footer>
 
+<script src="page.js"></script>
 </body>
 </html>

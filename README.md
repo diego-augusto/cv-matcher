@@ -1,68 +1,73 @@
 # CV Matcher
 
-Extensão do Chrome que gera um currículo adaptado à vaga aberta na aba atual, usando o Claude.
+> Beta 0.0.1. For now, it works only with Claude, by Anthropic.
 
-Ela lê o texto da página, combina com o seu currículo completo e devolve uma versão de até duas páginas que destaca o que é mais relevante para aquela vaga, pronta para salvar em PDF.
+A Chrome extension that generates a résumé tailored to the job posting open on the current tab, using Claude.
 
-## Instalação
+It reads the page text, combines it with your full résumé, and returns a version of up to two pages that highlights what is most relevant to that job, ready to save as a PDF.
 
-1. Abra `chrome://extensions`.
-2. Ative o **Modo do desenvolvedor**.
-3. Clique em **Carregar sem compactação** e selecione esta pasta.
+## Installation
 
-## Configuração
+1. Open `chrome://extensions`.
+2. Turn on **Developer mode**.
+3. Click **Load unpacked** and select this folder.
 
-Clique no ícone da extensão. Na primeira vez, o popup abre direto na configuração; depois, ela fica no botão de ajustes, no canto do popup. Preencha:
+## Setup
 
-- **Chave da API da Anthropic** (`sk-ant-...`), criada em [platform.claude.com](https://platform.claude.com).
-- **Modelo** do Claude usado na geração.
-- **Seu currículo completo**, em texto ou Markdown. Cole tudo: experiências, projetos, skills, formação e contatos. A extensão só usa o que estiver aqui, então quanto mais completo, melhor a seleção para cada vaga.
+Click the extension icon. The first time, the popup opens straight into setup; afterwards, setup is behind the settings button in the corner of the popup. Fill in:
 
-Tudo é salvo automaticamente. Para editar o currículo com mais espaço, abra a mesma tela como aba em **Detalhes → Opções da extensão**.
+- **Anthropic API key** (`sk-ant-...`), created at [platform.claude.com](https://platform.claude.com).
+- **Model** used for generation.
+- **Interface language** (Portuguese, English or Spanish) and **theme** (system, light or dark). This does not change the language of the generated résumé, which follows the job posting.
+- **Your full résumé**, as plain text or Markdown. Paste everything: experience, projects, skills, education and contact details. The extension only uses what is here, so the more complete it is, the better the selection for each job.
 
-## Uso
+Everything is saved automatically. To edit the résumé with more room, open the same screen as a tab under **Details → Extension options**.
 
-1. Abra a página de uma vaga (qualquer site).
-2. Clique no ícone da extensão e em **Gerar currículo para esta vaga**.
-3. Aguarde a geração na nova aba (cerca de um minuto); dá para cancelar.
-4. Clique no texto para ajustar o que quiser. As edições ficam salvas.
-5. Confira a estimativa de páginas e clique em **Imprimir / Salvar PDF**.
+## Usage
 
-O último currículo fica guardado: recarregar a aba ou reabrir pelo popup mostra o que foi salvo, sem nova chamada à API. Uma nova geração só acontece pelo botão do popup ou por **Gerar de novo**.
+1. Open a job posting (any site).
+2. Click the extension icon, then **Generate résumé for this job**.
+3. Wait for the generation in the new tab (about a minute); you can cancel it.
+4. Click the text to adjust anything. Edits are saved.
+5. Check the page estimate and click **Print / Save PDF**.
 
-## Regras de geração
+The last résumé is kept: reloading the tab or reopening it from the popup shows what was saved, with no new API call. A new generation only happens from the popup button or from **Generate again**.
 
-- **Sem invenção:** o modelo seleciona, reordena e reescreve o que está no seu currículo, mas não acrescenta experiência, skill ou resultado que você não declarou.
-- **Idioma:** o currículo sai no idioma em que a vaga está escrita.
-- **Página como dado:** instruções que apareçam no texto da página são ignoradas.
+## Generation rules
 
-Para mudar essas regras, edite a constante `SYSTEM` em `result.js`.
+- **Nothing invented:** the model selects, reorders and rewrites what is in your résumé, but does not add experience, skills or results you did not state.
+- **Language:** the résumé is written in the language of the job posting.
+- **Page as data:** instructions that appear in the page text are ignored.
 
-## Arquivos
+To change these rules, edit the `SYSTEM` constant in `result.js`.
 
-| Arquivo | Função |
+## Files
+
+| File | Purpose |
 |---|---|
-| `manifest.json` | Manifesto da extensão (Manifest V3). |
-| `popup.html`, `popup.js` | Popup do ícone: botão de gerar, modelo, chave e currículo. Também serve de página de opções. |
-| `result.html`, `result.js` | Chama a API do Claude, renderiza o currículo, salva as edições e cuida da impressão. |
-| `ui.css` | Cores e controles compartilhados pelas duas telas (tema claro e escuro). |
-| `teste/cv-fake.md` | Currículo fictício para testar. |
+| `manifest.json` | Extension manifest (Manifest V3). |
+| `popup.html`, `popup.js` | Icon popup: generate button, model, key and résumé. Also the options page. |
+| `result.html`, `result.js` | Calls the Claude API, renders the résumé, saves edits and handles printing. |
+| `i18n.js` | Interface strings in the three languages, and theme handling. |
+| `ui.css` | Colors and controls shared by both screens (light and dark theme). |
+| `test/fake-resume.md` | Fictional résumé for testing. |
+| `test/check-i18n.mjs` | Checks that the three languages have the same keys (`node test/check-i18n.mjs`). |
 
-Não há etapa de build nem dependências.
+There is no build step and there are no dependencies.
 
-## Modelo e custo
+## Model and cost
 
-O modelo é escolhido nas configurações: Opus 5.5 (padrão), Sonnet 5.5, Haiku 5.5 ou Fable 5.2. Cada geração envia seu currículo e o texto inteiro da página, e é cobrada na sua conta da Anthropic.
+The model is chosen in settings: Opus 5.5 (default), Sonnet 5.5, Haiku 5.5 or Fable 5.2. Each generation sends your résumé and the full page text, and is billed to your Anthropic account.
 
-## Privacidade
+## Privacy
 
-- A chave e o currículo ficam em `chrome.storage.local`, sem criptografia, apenas neste navegador.
-- Os dados são enviados somente para `api.anthropic.com`.
-- A extensão só lê a página quando você clica em gerar (permissão `activeTab`).
+- The key and the résumé are stored in `chrome.storage.local`, unencrypted, only in this browser.
+- Data is sent only to `api.anthropic.com`.
+- The extension reads a page only when you click generate (`activeTab` permission).
 
-## Limitações
+## Limitations
 
-- Páginas internas do Chrome (`chrome://`, Web Store) não podem ser lidas.
-- Vagas que carregam a descrição dentro de um iframe podem vir sem o texto; nesse caso, abra a vaga em página própria.
-- Sem histórico: só o último currículo fica guardado; cada geração substitui o anterior.
-- A contagem de páginas na tela é uma estimativa para papel A4.
+- Chrome's internal pages (`chrome://`, the Web Store) cannot be read.
+- Postings that load the description inside an iframe may come through without the text; in that case, open the posting on its own page.
+- No history: only the last résumé is kept, and each generation replaces the previous one.
+- The on-screen page count is an estimate for A4 paper.

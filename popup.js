@@ -1,18 +1,20 @@
-// Mesma página serve de popup (clique no ícone) e de página de opções (aba).
+// The same page is both the action popup (icon click) and the options page (tab).
 const $ = (id) => document.getElementById(id);
 const FIELDS = ["apiKey", "cv", "model"];
-const n = (x) => x.toLocaleString("pt-BR");
+const n = (x) => x.toLocaleString(locale());
+const usd = (value) => Number(value).toLocaleString(locale(), { style: "currency", currency: "USD" });
+const VERSION = chrome.runtime.getManifest().version;
 
-let tab; // aba ativa, só no popup
+let tab; // active tab, popup only
 let inPopup = false;
-let existing = false; // já há currículo salvo para a vaga desta aba
+let existing = false; // a résumé is already saved for this tab's job
 let setupOpen = false;
+let aboutOpen = false;
 
-// Só bloqueia o que é certamente errado; outros formatos sk-ant-* ficam por conta da API.
+// Blocks only what is certainly wrong; other sk-ant-* formats are left for the API to judge.
 function keyProblem(key) {
-  if (key.startsWith("sk-ant-oat"))
-    return "Este é um token do Claude Code (sk-ant-oat) e não funciona aqui. Use uma chave do Console, que começa com sk-ant-api.";
-  if (key && !key.startsWith("sk-ant-")) return "Isto não parece uma chave da Anthropic. Ela começa com sk-ant-api.";
+  if (key.startsWith("sk-ant-oat")) return t("p.keyOat");
+  if (key && !key.startsWith("sk-ant-")) return t("p.keyBad");
   return "";
 }
 
@@ -21,34 +23,40 @@ function render() {
   const cv = $("cv").value.trim();
   const problem = keyProblem(key);
   const configured = Boolean(key && !problem && cv);
-  const showSetup = !inPopup || setupOpen || !configured;
+  const showSetup = !aboutOpen && (!inPopup || setupOpen || !configured);
+  const showMain = inPopup && !aboutOpen;
   const readable = /^(https?|file):/.test(tab?.url || "");
   const option = $("model").selectedOptions[0];
 
   $("keyMsg").textContent = problem;
   $("keyMsg").hidden = !problem;
   $("apiKey").setAttribute("aria-invalid", String(Boolean(problem)));
-  $("modelHelp").textContent = `${option.dataset.price} por milhão de tokens.`;
-  $("cvCount").textContent = `${n(cv.length)} caracteres`;
+  $("modelHelp").textContent = t("p.price", { in: usd(option.dataset.in), out: usd(option.dataset.out) });
+  $("cvCount").textContent = t("p.chars", { n: n(cv.length) });
+  $("tabTitle").textContent = tab?.title || t("p.untitled");
+  $("version").textContent = t("a.version", { v: VERSION });
+  $("versionTag").textContent = `Beta ${VERSION}`;
 
+  $("about").hidden = !aboutOpen;
+  $("footer").hidden = aboutOpen;
   $("setup").hidden = !showSetup;
-  $("ready").hidden = !inPopup || showSetup;
-  $("existing").hidden = !existing || showSetup;
-  $("summary").hidden = !inPopup || showSetup;
-  $("summaryText").textContent = `Currículo: ${n(cv.length)} caracteres · ${option.text.split(" · ")[0]}`;
-  $("toggleSetup").hidden = !inPopup || !configured;
+  $("ready").hidden = !showMain || showSetup;
+  $("existing").hidden = !showMain || showSetup || !existing;
+  $("summary").hidden = !showMain || showSetup;
+  $("summaryText").textContent = t("p.summary", { n: n(cv.length), model: option.dataset.name });
+  $("toggleSetup").hidden = !showMain || !configured;
   $("toggleSetup").setAttribute("aria-expanded", String(showSetup));
 
-  $("generate").hidden = !inPopup;
+  $("generate").hidden = !showMain;
   $("generate").disabled = !configured || !readable;
-  $("hint").textContent = !inPopup
+  $("hint").textContent = !showMain
     ? ""
     : problem
-      ? "Corrija a chave para liberar a geração."
+      ? t("p.hintKey")
       : !configured
-        ? "Preencha a chave e o currículo para liberar a geração."
+        ? t("p.hintSetup")
         : !readable
-          ? "Esta página não pode ser lida pela extensão."
+          ? t("p.hintUnreadable")
           : "";
 }
 
@@ -57,19 +65,20 @@ function render() {
   $("apiKey").value = stored.apiKey || "";
   $("cv").value = stored.cv || "";
   $("model").value = stored.model || "claude-opus-5-5";
+  $("lang").value = currentLang();
+  $("theme").value = currentTheme();
 
   inPopup = !(await chrome.tabs.getCurrent());
   document.documentElement.classList.toggle("tab", !inPopup);
   if (inPopup) {
     [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    $("tabTitle").textContent = tab?.title || "(página sem título)";
     $("tabHost").textContent = URL.canParse(tab?.url) ? new URL(tab.url).hostname : "";
     existing = Boolean(tab?.url) && stored.result?.job?.url === tab.url;
   }
   render();
 })();
 
-// Salva a cada tecla: o popup fecha ao perder o foco, sem chance de clicar em "Salvar".
+// Saves on every keystroke: the popup closes when it loses focus, with no chance to click "Save".
 for (const id of FIELDS) {
   $(id).addEventListener("input", async () => {
     render();
@@ -78,9 +87,24 @@ for (const id of FIELDS) {
   });
 }
 
+// Language and theme: localStorage, read synchronously by i18n.js on every page.
+for (const id of ["lang", "theme"]) {
+  $(id).onchange = () => {
+    localStorage[id] = $(id).value;
+    applyPrefs();
+    render();
+  };
+}
+
 for (const id of ["toggleSetup", "change"]) {
   $(id).onclick = () => {
     setupOpen = !setupOpen;
+    render();
+  };
+}
+for (const id of ["aboutLink", "aboutBack"]) {
+  $(id).onclick = () => {
+    aboutOpen = !aboutOpen;
     render();
   };
 }
@@ -96,9 +120,9 @@ $("generate").onclick = async () => {
     });
     text = result || "";
   } catch {
-    // páginas chrome://, Web Store etc. não permitem leitura
+    // chrome:// pages, the Web Store etc. cannot be read
   }
-  if (!text.trim()) return ($("hint").textContent = "Não consegui ler o texto desta página.");
+  if (!text.trim()) return ($("hint").textContent = t("p.hintNoText"));
   await chrome.storage.local.set({ job: { text, url: tab.url || "", title: tab.title || "" } });
-  chrome.tabs.create({ url: "result.html#new" }); // #new: única forma de disparar uma geração ao abrir
+  chrome.tabs.create({ url: "result.html#new" }); // #new: the only way to start a generation on open
 };

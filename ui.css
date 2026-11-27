@@ -1,36 +1,22 @@
-/* Tokens e controles compartilhados pelo popup e pela aba de resultado. */
+/* Tokens and controls shared by the popup and the result tab. */
 :root {
   color-scheme: light dark;
   --navy: #1f3a5f;
-  --accent: var(--navy);
-  --on-accent: #fff;
-  --ink: #1a1f27;
-  --muted: #5b6472;
-  --line: #d9dde3;
-  --field-line: #c3c9d2;
-  --surface: #fff;
-  --ground: #eef0f3;
-  --soft: #f3f5f8;
-  --error: #b3261e;
-  --error-bg: #fdecea;
-  --ok: #1e6b3a;
+  --accent: light-dark(#1f3a5f, #9dbdea);
+  --on-accent: light-dark(#fff, #10202f);
+  --ink: light-dark(#1a1f27, #e8eaee);
+  --muted: light-dark(#5b6472, #a3acb9);
+  --line: light-dark(#d9dde3, #3a414c);
+  --field-line: light-dark(#c3c9d2, #4b5360);
+  --surface: light-dark(#fff, #1e2228);
+  --ground: light-dark(#eef0f3, #15181d);
+  --soft: light-dark(#f3f5f8, #272c34);
+  --error: light-dark(#b3261e, #ffb4ab);
+  --error-bg: light-dark(#fdecea, #4a1f1c);
+  --ok: light-dark(#1e6b3a, #8fd4a6);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --accent: #9dbdea;
-    --on-accent: #10202f;
-    --ink: #e8eaee;
-    --muted: #a3acb9;
-    --line: #3a414c;
-    --field-line: #4b5360;
-    --surface: #1e2228;
-    --ground: #15181d;
-    --soft: #272c34;
-    --error: #ffb4ab;
-    --error-bg: #4a1f1c;
-    --ok: #8fd4a6;
-  }
-}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 
 [hidden] { display: none !important; }
 body { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }

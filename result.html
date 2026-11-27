@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="pt-BR">
+<html>
 <meta charset="utf-8">
 <title>CV Matcher</title>
 <link rel="stylesheet" href="ui.css">
+<script src="i18n.js"></script>
 <style>
   body { margin: 0; background: var(--ground); }
   p { margin: 0; }
@@ -20,8 +21,8 @@
   #stage > * { margin: 0 auto 10px; }
   #tip { width: 210mm; max-width: 100%; }
 
-  /* A folha tem a largura útil da impressão (A4 menos 15 mm por lado), para a quebra de linha
-     e a estimativa de páginas baterem com o PDF. Fica sempre clara: é um documento. */
+  /* The sheet has the printable width (A4 minus 15 mm per side) so line wrapping and the
+     page estimate match the PDF. It is always light: it is a document. */
   .paper { width: 210mm; box-sizing: border-box; padding: 15mm; background: #fff; color: #111; color-scheme: light; box-shadow: 0 1px 3px rgba(26, 31, 39, .25); font: 11pt/1.4 Georgia, "Times New Roman", serif; }
   .paper:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
   #skeleton { min-height: 240mm; display: flex; flex-direction: column; gap: 12px; animation: pulse 1.6s ease-in-out infinite; }
@@ -29,7 +30,7 @@
   #skeleton .gap { margin-top: 20px; }
   #sheet { width: 100%; border-collapse: collapse; }
   #sheet td { padding: 0; }
-  /* Linha a cada 267 mm (altura útil de uma página A4): marca a quebra aproximada. */
+  /* A line every 267 mm (usable height of an A4 page) marks the approximate page break. */
   #cv { min-height: 266mm; outline: none; background: linear-gradient(to bottom, transparent calc(267mm - 1px), #9aa3b0 0) 0 0 / 100% 267mm; }
   #cv > :hover { outline: 1px dashed #9aa3b0; outline-offset: 3px; }
   #cv h1 { font-size: 22pt; margin: 0; }
@@ -57,8 +58,8 @@
   #metaList a { display: block; font-size: 13px; }
   #jobText { width: 100%; height: 200px; box-sizing: border-box; margin-top: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font: 12px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: var(--ink); background: var(--soft); resize: vertical; }
 
-  /* Margem de página zero tira o cabeçalho/rodapé do Chrome (data, título, URL);
-     thead/tfoot vazios se repetem em cada folha e devolvem a margem vertical. */
+  /* Zero page margin removes Chrome's header/footer (date, title, URL);
+     the empty thead/tfoot repeat on every page and give the vertical margin back. */
   @page { margin: 0; }
   @media print {
     body { background: #fff; padding: 0 15mm; }
@@ -80,14 +81,14 @@
     <span id="statusText"></span>
     <span id="statusExtra" class="muted"></span>
   </div>
-  <button id="cancel" class="btn ghost" data-show="generating" hidden>Cancelar</button>
-  <button id="regen" class="btn ghost" data-show="ready" hidden>Gerar de novo</button>
-  <button id="print" class="btn" data-show="ready" hidden>Imprimir / Salvar PDF</button>
+  <button id="cancel" class="btn ghost" data-show="generating" data-i18n="r.cancel" hidden></button>
+  <button id="regen" class="btn ghost" data-show="ready" data-i18n="r.regen" hidden></button>
+  <button id="print" class="btn" data-show="ready" data-i18n="r.print" hidden></button>
 </div>
 
 <div id="layout">
   <div id="stage">
-    <p id="tip" class="muted small" data-show="ready" hidden>Clique em qualquer texto para editar. As alterações ficam salvas e não gastam uma nova geração.</p>
+    <p id="tip" class="muted small" data-show="ready" data-i18n="r.tip" hidden></p>
 
     <div class="paper" data-show="generating" hidden>
       <div id="skeleton" aria-hidden="true">
@@ -113,8 +114,8 @@
     <div class="paper" data-show="ready" hidden>
       <table id="sheet" role="presentation">
         <thead><tr><td></td></tr></thead>
-        <!-- plaintext-only: colar não traz HTML de fora, então o innerHTML salvo é só a nossa estrutura + texto -->
-        <tbody><tr><td><main id="cv" contenteditable="plaintext-only" role="textbox" aria-multiline="true" aria-label="Currículo gerado, editável" spellcheck="false"></main></td></tr></tbody>
+        <!-- plaintext-only: pasting brings in no outside HTML, so the saved innerHTML is only our structure plus text -->
+        <tbody><tr><td><main id="cv" contenteditable="plaintext-only" role="textbox" aria-multiline="true" data-i18n-aria-label="r.cvLabel" spellcheck="false"></main></td></tr></tbody>
         <tfoot><tr><td></td></tr></tfoot>
       </table>
     </div>
@@ -124,18 +125,18 @@
       <p id="noticeText"></p>
       <p id="noticeNote" class="muted small"></p>
       <div id="noticeActions">
-        <button id="openSettings" class="btn">Abrir configurações</button>
-        <button id="retry" class="btn ghost">Tentar de novo</button>
+        <button id="openSettings" class="btn" data-i18n="r.openSettings"></button>
+        <button id="retry" class="btn ghost" data-i18n="r.retry"></button>
       </div>
       <div id="noticeDetail" class="muted"></div>
     </div>
   </div>
 
   <aside id="meta" aria-labelledby="metaTitle" hidden>
-    <h2 id="metaTitle">Dados usados na geração</h2>
+    <h2 id="metaTitle" data-i18n="r.metaTitle"></h2>
     <dl id="metaList"></dl>
     <div>
-      <label for="jobText">Texto lido da página</label>
+      <label for="jobText" data-i18n="r.jobText"></label>
       <textarea id="jobText" readonly></textarea>
     </div>
   </aside>

@@ -39,6 +39,14 @@ test("buildRequest sends what a browser-origin structured call needs", () => {
   assert.ok(!("budget_tokens" in body.thinking), "current models reject budget_tokens");
 });
 
+test("buildRequest appends the user's instructions to SYSTEM instead of replacing it", () => {
+  const system = (instructions) =>
+    JSON.parse(buildRequest({ apiKey: "k", cv: "c", model: "claude-opus-5-5", jobText: "j", instructions }).body).system;
+  assert.equal(system(""), system(undefined));
+  assert.ok(system("ONE PAGE").startsWith(system("")));
+  assert.ok(system("ONE PAGE").includes("<preferences>\nONE PAGE\n</preferences>"));
+});
+
 test("buildRequest asks for the server-side fallback on every model except Haiku", () => {
   for (const model of Object.keys(MODEL_NAMES)) {
     const { headers, body } = request(model);

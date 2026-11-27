@@ -42,7 +42,7 @@ Clicking generate in the popup reads `document.body.innerText` of the active tab
 
 ### Storage
 
-- `chrome.storage.local`: `apiKey`, `cv` (the user's source résumé), `model`, `job` (`{text, url, title}`, last captured page), `result` (`{job, cv, html, meta}`, last generated résumé). Only one result is kept. `result.cv` is the model's JSON; `result.html` is the edited DOM, set once the user edits.
+- `chrome.storage.local`: `apiKey`, `cv` (the user's source résumé), `model`, `instructions` (optional standing preferences, appended to `SYSTEM` by `buildRequest()`, never replacing it), `job` (`{text, url, title}`, last captured page), `result` (`{job, cv, html, meta}`, last generated résumé). Only one result is kept. `result.cv` is the model's JSON; `result.html` is the edited DOM, set once the user edits.
 - `localStorage`: `lang` and `theme` only. They live there because it is synchronous and shared by both pages, so `i18n.js` (loaded in `<head>`) can set theme and language before first paint.
 
 ### Claude API call (`generate()` in `result.js`, built and parsed in `core.js`)

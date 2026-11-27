@@ -22,6 +22,7 @@ Files in `src/` are loaded by Chrome as-is.
 - Test: `npm test` (`node --test`, Node's built-in runner), from the repo root. It runs:
   - `test/core.test.mjs` — unit tests for `src/core.js`, plus static checks on the extension files: every script parses, the two model lists match, `#cv` is still plaintext-only, the pages have no inline scripts, and every file the manifest and pages reference exists.
   - `test/check-i18n.mjs` — fails if the three languages do not have identical keys or if the code references a missing key.
+  - `test/check-page.mjs` — the same check for the project page in `docs/` (GitHub Pages): English is the markup of `docs/index.html`, and the `pt` and `es` tables in `docs/page.js` must cover exactly its `data-i18n` keys.
 - One test by name: `node --test --test-name-pattern="explain"`.
 - CI (`.github/workflows/ci.yml`) runs `npm test` on every pull request and on pushes to `main`.
 - Release: bump `version` in `src/manifest.json`, then push a tag `vX.Y.Z` that matches it. CI zips `src/` and attaches it to a GitHub release. Publishing to the Chrome Web Store is still manual.
